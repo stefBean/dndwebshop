@@ -1,0 +1,11 @@
+services:
+  shop:
+    build: .
+    ports:
+      - "80:3001"
+    volumes:
+      - shop-data:/data
+    restart: unless-stopped
+
+volumes:
+  shop-data:

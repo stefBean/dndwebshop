@@ -1,5 +1,6 @@
 import express from 'express';
 import { db } from './db.js';
+import path from 'node:path';
 
 const app = express();
 app.use(express.json());
@@ -14,4 +15,11 @@ app.get('/api/products/:id', (req, res) => {
     res.json(product);
 });
 
-app.listen(3001, () => console.log('API on http://localhost:3001'));
+const clientDist = path.resolve(import.meta.dirname, '../client/dist');
+app.use(express.static(clientDist));
+app.get('/{*splat}', (req, res) => {
+    res.sendFile(path.join(clientDist, 'index.html'));
+});
+
+const port = process.env.PORT || 3001;
+app.listen(port, () => console.log(`Shop on port ${port}`));

@@ -1,2 +1,2 @@
 import Database from 'better-sqlite3';
-export const db = new Database('shop.db');
+export const db = new Database(process.env.DB_PATH || 'shop.db');
