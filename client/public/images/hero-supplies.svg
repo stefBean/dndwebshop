@@ -1,0 +1,174 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="700" viewBox="0 0 1100 700" fill="none">
+  <defs>
+    <linearGradient id="sage" x1="367" y1="115" x2="932" y2="632" gradientUnits="userSpaceOnUse"><stop stop-color="#E3E8DB"/><stop offset="1" stop-color="#CDD9CB"/></linearGradient>
+    <linearGradient id="leather" x1="0" y1="0" x2="330" y2="390" gradientUnits="userSpaceOnUse"><stop stop-color="#35665A"/><stop offset=".46" stop-color="#244B42"/><stop offset="1" stop-color="#142F2C"/></linearGradient>
+    <linearGradient id="spine" x1="0" y1="0" x2="46" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#142F2B"/><stop offset=".4" stop-color="#3F6A59"/><stop offset="1" stop-color="#173F37"/></linearGradient>
+    <linearGradient id="pages" x1="0" y1="0" x2="0" y2="34" gradientUnits="userSpaceOnUse"><stop stop-color="#B7AA80"/><stop offset=".22" stop-color="#EFE2B7"/><stop offset=".8" stop-color="#D6C398"/><stop offset="1" stop-color="#AE9D76"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#F2D68E"/><stop offset=".45" stop-color="#C9A65F"/><stop offset="1" stop-color="#92713F"/></linearGradient>
+    <linearGradient id="amberGlass" x1="445" y1="240" x2="687" y2="535" gradientUnits="userSpaceOnUse"><stop stop-color="#F7DEB4" stop-opacity=".7"/><stop offset=".2" stop-color="#D8A564" stop-opacity=".66"/><stop offset=".49" stop-color="#F7DCB2" stop-opacity=".38"/><stop offset=".8" stop-color="#B97437" stop-opacity=".76"/><stop offset="1" stop-color="#91502B" stop-opacity=".86"/></linearGradient>
+    <linearGradient id="amberLiquid" x1="478" y1="348" x2="666" y2="543" gradientUnits="userSpaceOnUse"><stop stop-color="#E7A43B"/><stop offset=".3" stop-color="#D17A28"/><stop offset=".72" stop-color="#A95024"/><stop offset="1" stop-color="#763820"/></linearGradient>
+    <linearGradient id="auraGlass" x1="729" y1="227" x2="921" y2="523" gradientUnits="userSpaceOnUse"><stop stop-color="#DCF1D9" stop-opacity=".8"/><stop offset=".2" stop-color="#84BDA8" stop-opacity=".7"/><stop offset=".48" stop-color="#C4DCC4" stop-opacity=".75"/><stop offset=".8" stop-color="#408375" stop-opacity=".82"/><stop offset="1" stop-color="#194E47" stop-opacity=".88"/></linearGradient>
+    <linearGradient id="tealLiquid" x1="751" y1="342" x2="892" y2="530" gradientUnits="userSpaceOnUse"><stop stop-color="#589F8E"/><stop offset=".5" stop-color="#286C60"/><stop offset="1" stop-color="#164C45"/></linearGradient>
+    <linearGradient id="cork" x1="0" y1="0" x2="90" y2="60" gradientUnits="userSpaceOnUse"><stop stop-color="#BE9767"/><stop offset=".42" stop-color="#D7B783"/><stop offset="1" stop-color="#806447"/></linearGradient>
+    <linearGradient id="label" x1="0" y1="0" x2="0" y2="112" gradientUnits="userSpaceOnUse"><stop stop-color="#F0E3BB"/><stop offset="1" stop-color="#D7BF8C"/></linearGradient>
+    <linearGradient id="die" x1="0" y1="0" x2="153" y2="169" gradientUnits="userSpaceOnUse"><stop stop-color="#EBB16C"/><stop offset=".44" stop-color="#CD7844"/><stop offset="1" stop-color="#974D31"/></linearGradient>
+    <radialGradient id="glow"><stop stop-color="#EBC992" stop-opacity=".55"/><stop offset="1" stop-color="#EBC992" stop-opacity="0"/></radialGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="12"/></filter>
+    <filter id="bottleShadow" x="-40%" y="-20%" width="180%" height="160%"><feGaussianBlur in="SourceAlpha" stdDeviation="10" result="blur"/><feOffset dx="8" dy="15" result="offsetBlur"/><feFlood flood-color="#2D3F32" flood-opacity=".2"/><feComposite in2="offsetBlur" operator="in"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <clipPath id="amberClip"><path d="M534 257V212H600V257C600 282 663 289 682 348C706 426 685 515 651 536C618 558 514 559 481 536C448 514 428 426 452 348C471 289 534 282 534 257Z"/></clipPath>
+    <clipPath id="tealClip"><path d="M792 225V177H844V225C844 259 893 280 903 331L915 462C918 500 881 530 819 530C756 530 719 500 722 462L734 331C744 280 792 259 792 225Z"/></clipPath>
+    <pattern id="paperLines" width="8" height="5" patternUnits="userSpaceOnUse"><path d="M0 1H8" stroke="#998B66" stroke-width=".6" opacity=".45"/></pattern>
+  </defs>
+
+  <!-- A quiet, sunlit tabletop behind the travelling apothecary's collection. -->
+  <path d="M353 142C439 28 697 20 837 92C987 169 1047 375 955 526C880 649 639 676 467 618C290 559 246 283 353 142Z" fill="url(#sage)"/>
+  <circle cx="700" cy="310" r="244" fill="url(#glow)"/>
+  <path d="M404 156C472 91 587 68 680 78M966 377C960 463 921 521 865 563" stroke="#FCF9EE" stroke-opacity=".6" stroke-width="2" stroke-linecap="round"/>
+  <ellipse cx="659" cy="590" rx="333" ry="28" fill="#4A5945" opacity=".15" filter="url(#blur)"/>
+  <ellipse cx="624" cy="591" rx="266" ry="9" fill="#28423B" opacity=".09"/>
+
+  <!-- A spray of dried meadow stems. -->
+  <g stroke="#697D5C" stroke-width="2.8" stroke-linecap="round">
+    <path d="M871 521C897 404 936 270 990 194M883 443C915 390 958 365 999 350M901 378C922 331 937 271 938 235M934 301C967 278 994 269 1017 263"/>
+  </g>
+  <g fill="#8D9B6F">
+    <path d="M935 290C918 274 917 250 939 230C950 253 948 273 935 290Z"/>
+    <path d="M956 264C951 240 964 215 985 208C985 233 973 252 956 264Z"/>
+    <path d="M976 228C976 208 985 185 1005 177C1007 200 996 219 976 228Z"/>
+    <path d="M910 355C895 337 899 314 918 297C924 323 923 342 910 355Z"/>
+    <path d="M950 304C957 282 985 273 1002 281C986 300 970 310 950 304Z"/>
+    <path d="M940 374C955 353 978 351 994 362C975 378 958 384 940 374Z"/>
+    <path d="M913 399C911 379 922 358 941 352C942 377 933 392 913 399Z"/>
+  </g>
+  <g fill="#C8B37D"><ellipse cx="995" cy="191" rx="6" ry="12" transform="rotate(36 995 191)"/><ellipse cx="1015" cy="263" rx="5" ry="11" transform="rotate(62 1015 263)"/></g>
+
+  <!-- Thick linen-edged spellbook, gold tooled leather and brass corners. -->
+  <g transform="translate(321 242) rotate(-12 164 183)" filter="url(#bottleShadow)">
+    <path d="M12 8Q12 0 23 0H303Q321 0 321 18V351Q320 361 308 367H29Q5 365 5 349V22Z" fill="#17392F"/>
+    <path d="M29 331H310V361H29Q13 361 13 346Q13 332 29 331Z" fill="url(#pages)"/>
+    <path d="M29 333H306V359H29Q16 358 16 346Q16 335 29 333Z" fill="url(#paperLines)"/>
+    <path d="M17 6Q17 0 29 0H306Q320 0 320 14V337H29Q10 337 8 322V23Q7 12 17 6Z" fill="url(#leather)"/>
+    <path d="M27 0H49V336H27Q8 336 8 320V19Q8 0 27 0Z" fill="url(#spine)"/>
+    <path d="M53 19H301V317H53Z" stroke="#BCA366" stroke-width="1.8"/>
+    <path d="M61 27H293V309H61Z" stroke="#8D8352" stroke-width=".75"/>
+    <path d="M15 32H44M15 46H44M15 99H44M15 113H44M15 223H44M15 237H44M15 291H44M15 305H44" stroke="#C0A46B" stroke-width="3"/>
+    <path d="M53 19H89L53 55ZM301 19H267L301 55ZM53 317H89L53 281ZM301 317H267L301 281Z" fill="url(#gold)"/>
+    <circle cx="177" cy="164" r="77" stroke="#BBA267" stroke-width="1.2"/>
+    <circle cx="177" cy="164" r="67" stroke="#BBA267" stroke-width=".7" stroke-dasharray="2 7"/>
+    <path d="M177 85L195 143L253 164L195 183L177 243L157 183L99 164L157 143Z" stroke="#D1BA7C" stroke-width="1.6"/>
+    <path d="M177 119L209 164L177 209L145 164Z" fill="#C0A166" fill-opacity=".12" stroke="#C9B273"/>
+    <path d="M177 140L195 164L177 187L159 164Z" stroke="#E1CA8F" stroke-width="1.5"/>
+    <circle cx="177" cy="164" r="6" fill="#D8BA75"/>
+    <path d="M121 62H234M137 71H219M121 267H234M137 276H219" stroke="#A99360" stroke-width="1.1"/>
+    <path d="M116 58L121 62L116 67M239 58L234 62L239 67" stroke="#D1BB7D"/>
+    <path d="M265 146H322V181H265Q257 164 265 146Z" fill="#17372F" stroke="#9D8857"/>
+    <rect x="289" y="151" width="18" height="25" rx="3" stroke="url(#gold)" stroke-width="4"/>
+    <path d="M318 12V331" stroke="#73907A" stroke-opacity=".24" stroke-width="3"/>
+  </g>
+
+  <!-- Tall sea-glass mana bottle, corked and tied with linen. -->
+  <g filter="url(#bottleShadow)">
+    <path d="M792 225V177H844V225C844 259 893 280 903 331L915 462C918 500 881 530 819 530C756 530 719 500 722 462L734 331C744 280 792 259 792 225Z" fill="url(#auraGlass)" stroke="#416C5F" stroke-opacity=".65" stroke-width="2.2"/>
+    <g clip-path="url(#tealClip)">
+      <path d="M718 352C759 343 874 344 910 352L925 478C917 549 726 550 712 478Z" fill="url(#tealLiquid)"/>
+      <ellipse cx="819" cy="352" rx="92" ry="10" fill="#90C4AE" opacity=".9"/>
+      <path d="M747 341L735 460C729 487 749 507 778 511" stroke="#D7E4C5" stroke-width="9" stroke-opacity=".35" stroke-linecap="round"/>
+      <path d="M891 342L903 459C906 491 878 512 855 516" stroke="#173F39" stroke-opacity=".45" stroke-width="9"/>
+      <ellipse cx="773" cy="372" rx="3" ry="5" fill="#B7D7BD" opacity=".65"/>
+      <ellipse cx="791" cy="399" rx="2" ry="3.5" fill="#B7D7BD" opacity=".45"/>
+      <ellipse cx="861" cy="370" rx="2.5" ry="3.5" fill="#B7D7BD" opacity=".55"/>
+    </g>
+    <path d="M801 220V194" stroke="#EFF5D9" stroke-width="6" stroke-linecap="round" opacity=".65"/>
+    <path d="M786 175Q786 168 793 168H843Q850 168 850 175V186Q850 191 843 191H793Q786 191 786 184Z" fill="#A6C1A5" stroke="#6D8D76" stroke-width="2"/>
+    <path d="M796 169L792 137Q794 128 817 128Q841 128 843 137L839 169Z" fill="url(#cork)" stroke="#8F724D" stroke-width="1.3"/>
+    <ellipse cx="818" cy="137" rx="25" ry="8" fill="#D8B883" stroke="#9E8158"/>
+    <path d="M802 143L804 158M815 142L815 163M832 144L830 157" stroke="#9F7A4D" stroke-width="1.2" stroke-linecap="round"/>
+    <path d="M790 206Q818 214 846 206M791 211Q817 220 846 212" stroke="#C6AE78" stroke-width="3"/>
+    <path d="M843 211C856 236 872 262 878 296" stroke="#B59A63" stroke-width="2"/>
+    <g transform="translate(838 269) rotate(15)">
+      <path d="M0 0H46V65L23 76L0 65Z" fill="#E8D7AC" stroke="#B9A477"/>
+      <circle cx="23" cy="10" r="3" fill="#947C51"/>
+      <path d="M23 26L34 45L23 61L12 45Z" stroke="#3F6D5C" stroke-width="1.5"/>
+      <path d="M17 44H29M23 34V55" stroke="#3F6D5C"/>
+    </g>
+    <path d="M740 324C746 294 778 272 790 251" stroke="#F5F5D9" stroke-opacity=".62" stroke-width="6" stroke-linecap="round"/>
+    <path d="M761 508Q814 526 870 509" stroke="#9FC2A7" stroke-opacity=".45" stroke-width="2"/>
+  </g>
+
+  <!-- Warm healing elixir with its hand-stamped apothecary label. -->
+  <g filter="url(#bottleShadow)">
+    <path d="M534 257V212H600V257C600 282 663 289 682 348C706 426 685 515 651 536C618 558 514 559 481 536C448 514 428 426 452 348C471 289 534 282 534 257Z" fill="url(#amberGlass)" stroke="#B28A53" stroke-width="2.4"/>
+    <g clip-path="url(#amberClip)">
+      <path d="M438 367C486 353 653 351 694 366L704 519C665 580 467 577 430 521Z" fill="url(#amberLiquid)"/>
+      <ellipse cx="567" cy="366" rx="127" ry="11" fill="#E7B768"/>
+      <ellipse cx="567" cy="368" rx="119" ry="6" fill="#C9843F" opacity=".55"/>
+      <path d="M470 359C457 405 461 492 485 513" stroke="#FFDFA4" stroke-width="10" stroke-opacity=".5" stroke-linecap="round"/>
+      <path d="M669 355C686 414 680 493 650 521" stroke="#743D24" stroke-width="12" stroke-opacity=".4"/>
+      <circle cx="503" cy="389" r="3" fill="#F3CE87" opacity=".8"/>
+      <circle cx="625" cy="389" r="2" fill="#F3CE87" opacity=".8"/>
+      <circle cx="492" cy="417" r="2" fill="#F3CE87" opacity=".6"/>
+    </g>
+    <path d="M542 252V228" stroke="#FFF0CC" stroke-width="8" stroke-linecap="round" opacity=".7"/>
+    <path d="M528 211Q528 205 537 205H597Q606 205 606 211V226Q606 232 597 232H537Q528 232 528 226Z" fill="#D2B47C" stroke="#9B7B4C" stroke-width="1.6"/>
+    <path d="M540 206L536 171Q536 163 566 163Q598 163 598 172L594 206Z" fill="url(#cork)" stroke="#98744B" stroke-width="1.2"/>
+    <ellipse cx="567" cy="172" rx="31" ry="9" fill="#E0BC87" stroke="#AB885B"/>
+    <path d="M546 180L548 196M558 181V200M580 182L578 198M590 177L588 193" stroke="#9E7949" stroke-width="1.4" stroke-linecap="round"/>
+    <path d="M532 248Q567 259 602 248M532 253Q568 264 602 253" stroke="#A17C4A" stroke-width="3"/>
+    <path d="M594 257C610 270 615 292 617 314" stroke="#AD8B50" stroke-width="2"/>
+    <path d="M488 390Q567 379 646 391L642 489Q567 504 492 489Z" fill="url(#label)" stroke="#B39A62" stroke-width="1.3"/>
+    <path d="M497 398Q567 389 637 398L634 481Q567 493 500 481Z" stroke="#A18B58" stroke-width=".8"/>
+    <path d="M538 405L567 399L596 405M535 476Q567 483 600 476" stroke="#8A774B" stroke-width="1.1"/>
+    <circle cx="567" cy="440" r="24" stroke="#8B7041" stroke-width="1.4"/>
+    <path d="M567 420V460M548 440H586" stroke="#956841" stroke-width="6"/>
+    <path d="M512 415L520 419L512 423M621 415L613 419L621 423M512 467H528M606 467H622" stroke="#9B8151" stroke-width="1.2"/>
+    <path d="M470 340C477 313 505 297 521 281" stroke="#FFF0CF" stroke-opacity=".8" stroke-width="8" stroke-linecap="round"/>
+    <path d="M497 533Q568 550 638 532" stroke="#E6AD61" stroke-opacity=".6" stroke-width="3"/>
+    <circle cx="616" cy="309" r="14" fill="#913E2D"/>
+    <circle cx="616" cy="309" r="10" stroke="#BF7152"/>
+    <path d="M616 302L620 309L616 316L612 309Z" stroke="#D0A16B"/>
+  </g>
+
+  <!-- Amber polyhedral dice, cut with crisp sunlit facets. -->
+  <g transform="translate(654 492) rotate(12 81 78)" filter="url(#bottleShadow)">
+    <path d="M24 21L83 0L144 29L161 98L115 151L47 149L0 95Z" fill="url(#die)" stroke="#8A4A30" stroke-width="1.8"/>
+    <path d="M24 21L83 0L54 61Z" fill="#EFB875"/>
+    <path d="M83 0L144 29L104 59Z" fill="#E2A05E"/>
+    <path d="M24 21L54 61L0 95Z" fill="#D18B50"/>
+    <path d="M144 29L161 98L104 59Z" fill="#B46A3C"/>
+    <path d="M54 61L104 59L130 108L44 111Z" fill="#CA7540"/>
+    <path d="M104 59L161 98L130 108Z" fill="#9E5634"/>
+    <path d="M0 95L44 111L47 149Z" fill="#C57945"/>
+    <path d="M44 111L130 108L115 151L47 149Z" fill="#AE6038"/>
+    <path d="M130 108L161 98L115 151Z" fill="#8F4C31"/>
+    <path d="M24 21L83 0L144 29L161 98L115 151L47 149L0 95L24 21ZM24 21L54 61L83 0L104 59L144 29M0 95L54 61H104L161 98L130 108L104 59M54 61L44 111L0 95M44 111L47 149M44 111L130 108L115 151" stroke="#F4C78A" stroke-opacity=".66" stroke-width="1.25" stroke-linejoin="round"/>
+    <g stroke="#FBE5B4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M70 79C74 72 84 74 83 80C82 84 72 89 70 95H84M91 77Q99 74 100 86Q101 98 94 96Q88 94 89 83Q89 79 91 77Z"/>
+      <path d="M54 30L60 29L53 45M116 37L119 32L123 45M17 78L23 70L26 82M71 123L79 123L73 138M128 127L132 119L135 128" stroke-width="1.5"/>
+    </g>
+    <path d="M33 26L47 22M38 31L45 29M66 8L58 19M116 53L126 46M139 74L143 83M55 132L62 137" stroke="#F4CF95" stroke-width="1" opacity=".8"/>
+  </g>
+  <g transform="translate(846 550) rotate(-14 42 38)">
+    <path d="M13 4L62 0L81 26L70 69L29 78L0 42Z" fill="#A9B9AA" stroke="#637D70" stroke-width="1.5"/>
+    <path d="M13 4L37 28L62 0L81 26L37 28L70 69L29 78L37 28L0 42Z" fill="#D5DED0"/>
+    <path d="M37 28L81 26L70 69Z" fill="#8FA99A"/>
+    <path d="M13 4L62 0L81 26L70 69L29 78L0 42L13 4ZM13 4L37 28L62 0M0 42L37 28L81 26M29 78L37 28L70 69" stroke="#F2EDCF" stroke-width="1"/>
+    <path d="M41 40L49 38L44 54M51 42L54 39L59 52" stroke="#4A6C5C" stroke-width="1.6" stroke-linecap="round"/>
+  </g>
+
+  <!-- Small brass trinkets and a folded ribbon on the workbench. -->
+  <g transform="translate(461 590) rotate(10)">
+    <path d="M0 0C43 -22 87 -10 125 8L120 25C83 4 48 -5 7 13Z" fill="#BCAC82"/>
+    <path d="M10 2C50 -12 86 -3 119 13" stroke="#E2D3AA" stroke-width="2"/>
+    <path d="M117 11L142 26L136 35L113 24Z" fill="#8E805F"/>
+  </g>
+  <g transform="translate(341 551) rotate(-17)">
+    <circle cx="24" cy="24" r="24" fill="#A88B4F"/>
+    <circle cx="24" cy="24" r="20" fill="#D5B877" stroke="#F0DCA4"/>
+    <path d="M24 10L29 19L39 24L29 29L24 38L19 29L9 24L19 19Z" fill="#B39456" stroke="#8B754B" stroke-width=".8"/>
+    <circle cx="24" cy="24" r="5" fill="#E9CF91"/>
+  </g>
+  <path d="M411 154L415 163L425 167L415 170L411 180L408 170L398 167L408 163Z" fill="#BB9757"/>
+  <path d="M888 107L891 114L898 117L891 120L888 127L885 120L878 117L885 114Z" fill="#BB9757" opacity=".8"/>
+  <circle cx="914" cy="161" r="3" fill="#A68E5C"/>
+  <circle cx="441" cy="115" r="2" fill="#A68E5C"/>
+</svg>

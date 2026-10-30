@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 440" fill="none">
+  <defs>
+    <linearGradient id="amber" x1="165" y1="100" x2="430" y2="350" gradientUnits="userSpaceOnUse"><stop stop-color="#F6B86C"/><stop offset=".45" stop-color="#CC673B"/><stop offset="1" stop-color="#702F25"/></linearGradient>
+    <linearGradient id="side" x1="205" y1="130" x2="355" y2="345" gradientUnits="userSpaceOnUse"><stop stop-color="#E99B53"/><stop offset="1" stop-color="#A34029"/></linearGradient>
+    <linearGradient id="edge" x1="180" y1="125" x2="410" y2="330" gradientUnits="userSpaceOnUse"><stop stop-color="#FFF0B8"/><stop offset=".5" stop-color="#E6AB66"/><stop offset="1" stop-color="#A75A37"/></linearGradient>
+    <radialGradient id="glow"><stop stop-color="#FFE7B4" stop-opacity=".8"/><stop offset="1" stop-color="#FFE7B4" stop-opacity="0"/></radialGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="170%" height="190%"><feGaussianBlur stdDeviation="11"/></filter>
+    <filter id="soft" x="-30%" y="-30%" width="170%" height="190%"><feGaussianBlur in="SourceAlpha" stdDeviation="9" result="blur"/><feOffset dx="0" dy="12" result="offsetBlur"/><feFlood flood-color="#493822" flood-opacity=".18"/><feComposite in2="offsetBlur" operator="in"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <ellipse cx="309" cy="351" rx="154" ry="21" fill="#694E32" opacity=".17" filter="url(#shadow)"/>
+  <g filter="url(#soft)">
+    <path d="m291 73 122 86 5 143-126 69-128-77 5-138z" fill="url(#amber)" stroke="#AD633C" stroke-width="2" stroke-linejoin="round"/>
+    <path d="m291 73 14 120-136-37z" fill="#F3B776"/>
+    <path d="m291 73 122 86-108 34z" fill="#D4824E"/>
+    <path d="m169 156 136 37-141 101z" fill="#CB663A"/>
+    <path d="m305 193 113 109-5-143z" fill="#B45535"/>
+    <path d="m164 294 141-101 113 109-126 69z" fill="url(#side)"/>
+    <path d="m164 294 128 77-34-114z" fill="#A3472E"/>
+    <path d="m258 257 34 114 126-69z" fill="#873A29"/>
+    <path d="m169 156 136 37 108-34M291 73l14 120-47 64-94 37m94-37 160 45M292 371l-34-114M305 193l113 109" stroke="url(#edge)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="m291 81-113 79m-6 5-3 115" stroke="#FFDDA0" stroke-width="2" opacity=".65" stroke-linecap="round"/>
+    <path d="m272 213 19-10 22 11-6 23-24 9-18-13z" stroke="#FCE7B5" stroke-width="3" stroke-linejoin="round"/>
+    <path d="m290 207 3 29m-18-15 31 7m-24 10 18-20" stroke="#FCE7B5" stroke-width="2" stroke-linecap="round"/>
+    <path d="m254 122 15-8 13 10-11 6-6 17-11-25Z" stroke="#F8DDA0" stroke-width="2.3" stroke-linejoin="round"/>
+    <path d="m364 195 19 8-13 25m-11-16 19 9M201 214l15-9 8 23-19-1 16-21M322 302l17-8 10 12-20 12-7-16Z" stroke="#F5D49C" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="265" cy="165" r="47" fill="url(#glow)" opacity=".3"/>
+    <path d="m202 180 5-2m8 33 2-1m137-92 3 2m33 133 2 5m-171 15 3 2m96 49 2-2m-36-173 2 1m-55 48 3-2" stroke="#FFE3B7" stroke-opacity=".35" stroke-width="2" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(368 263) rotate(14)">
+    <path d="m38-16 53 28 3 59-54 31-53-34 1-55Z" fill="#BE774C" stroke="#C99862" stroke-width="1.5"/>
+    <path d="m38-16 3 55-53-26z" fill="#E5A66A"/>
+    <path d="m41 39 50-27 3 59-54 31z" fill="#985233"/>
+    <path d="m-12 13 53 26 50-27M41 39l-1 63" stroke="#F3C78E" stroke-width="1.5"/>
+    <path d="m17 40 6 19 11-10M60 56l12-6 1 18-10 7zM33 5l9 5-9 7-9-7z" stroke="#FFE0AA" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <path d="m123 286 4 10 10 4-10 3-4 11-3-11-10-3 10-4zM443 155l3 7 7 3-7 2-3 8-2-8-7-2 7-3z" fill="#C89A62" opacity=".65"/>
+</svg>

@@ -1,25 +1,10 @@
-import express from 'express';
-import { db } from './db.js';
-import path from 'node:path';
+import { createApp } from './app.js';
+import { openDatabase } from './db.js';
 
-const app = express();
-app.use(express.json());
-
-app.get('/api/products', (req, res) => {
-    res.json(db.prepare('SELECT id, name, price_cents FROM products').all());
-});
-
-app.get('/api/products/:id', (req, res) => {
-    const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
-    if (!product) return res.status(404).json({ error: 'Product not found' });
-    res.json(product);
-});
-
-const clientDist = path.resolve(import.meta.dirname, '../client/dist');
-app.use(express.static(clientDist));
-app.get('/{*splat}', (req, res) => {
-    res.sendFile(path.join(clientDist, 'index.html'));
-});
-
+const db = openDatabase();
 const port = process.env.PORT || 3001;
-app.listen(port, () => console.log(`Shop on port ${port}`));
+const server = createApp(db).listen(port, () => console.log(`Dice & Lore on port ${port}`));
+
+for (const signal of ['SIGTERM', 'SIGINT']) {
+  process.on(signal, () => server.close(() => { db.close(); process.exit(0); }));
+}
