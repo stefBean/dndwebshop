@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:all": "node ../scripts/dev.mjs",
+    "build:all": "npm run dev:all --",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
