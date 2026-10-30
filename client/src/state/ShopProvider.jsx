@@ -1,28 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ShopContext } from "./shop-context.js";
 import { api } from "../lib/api.js";
-
-const CART_KEY = "dice-and-lore.cart.v1";
-function readCart() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
-    if (!Array.isArray(saved)) return [];
-    const items = new Map();
-    saved.forEach(({ product_id, quantity }) => {
-      if (
-        Number.isSafeInteger(product_id) &&
-        product_id > 0 &&
-        Number.isSafeInteger(quantity) &&
-        quantity > 0 &&
-        quantity <= 99
-      )
-        items.set(product_id, { product_id, quantity });
-    });
-    return [...items.values()].slice(0, 100);
-  } catch {
-    return [];
-  }
-}
+import { readCart, writeCart } from "../lib/cart-storage.js";
 
 export default function ShopProvider({ children }) {
   const [products, setProducts] = useState([]);
@@ -78,9 +57,7 @@ export default function ShopProvider({ children }) {
   }, [notify]);
   useEffect(() => {
     let timer;
-    try {
-      localStorage.setItem(CART_KEY, JSON.stringify(cart));
-    } catch {
+    if (!writeCart(cart)) {
       timer = setTimeout(
         () =>
           notify(

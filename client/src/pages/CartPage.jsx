@@ -1,9 +1,18 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { useShop } from "../state/shop-context.js";
 import { api, formatPrice } from "../lib/api.js";
-import { Button, EmptyState, Icon, QuantityInput } from "../components/ui.jsx";
-
+import {
+  BackLink,
+  Button,
+  EmptyState,
+  Icon,
+  LinkButton,
+  Notice,
+  OrderCard,
+  OrderTotal,
+  PageHeader,
+} from "../components/ui.jsx";
+import CartItem from "../components/CartItem.jsx";
 export default function CartPage() {
   const {
     cart,
@@ -23,7 +32,6 @@ export default function CartPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [order, setOrder] = useState(null);
-
   async function checkout() {
     if (submitting || !user || !cartItems.length) return;
     setSubmitting(true);
@@ -49,87 +57,47 @@ export default function CartPage() {
       setSubmitting(false);
     }
   }
-
   if (order)
     return (
-      <section className="mx-auto max-w-3xl px-5 py-16 sm:px-8 sm:py-24">
-        <div className="mb-7 flex size-16 items-center justify-center rounded-full bg-[#e4ece5] text-[#204f49]">
+      <section className="mx-auto max-w-3xl px-4 py-12 sm:px-8 sm:py-20">
+        <div className="mb-8 flex size-16 items-center justify-center rounded-full border border-gold/30 bg-gold/5 text-gold">
           <Icon name="check" className="size-8" />
         </div>
-        <p className="mb-3 text-xs font-semibold tracking-[0.2em] text-[#c65c36]">
-          ADVENTURE, CONFIRMED
-        </p>
-        <h1 className="font-serif text-4xl text-[#204f49] sm:text-5xl">
-          Your next chapter is packed.
-        </h1>
-        <p className="mt-5 leading-7 text-[#6e756b]">
-          Your simulated order has been saved. No payment was taken and no
-          products will be shipped.
-        </p>
-        <div className="mt-9 overflow-hidden rounded-xl border border-[#dedfd5] bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#ecece4] px-6 py-5">
-            <div>
-              <p className="text-xs uppercase tracking-widest text-[#788071]">
-                Order number
-              </p>
-              <p className="mt-1 font-semibold text-[#204f49]">
-                {order.number}
-              </p>
-            </div>
-            <span className="rounded-full bg-[#edf1e9] px-3 py-1 text-xs font-medium text-[#46664d]">
-              Simulation complete
-            </span>
-          </div>
-          <ul className="divide-y divide-[#ecece4] px-6">
-            {order.items.map((item) => (
-              <li
-                key={item.product_id}
-                className="flex justify-between gap-4 py-4 text-sm"
-              >
-                <span>
-                  {item.name}{" "}
-                  <span className="text-[#788071]">× {item.quantity}</span>
-                </span>
-                <span className="whitespace-nowrap font-medium">
-                  {formatPrice(item.price_cents * item.quantity)}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <div className="flex items-center justify-between border-t border-[#ecece4] bg-[#fafaf5] px-6 py-5 font-semibold text-[#204f49]">
-            <span>Total</span>
-            <span>{formatPrice(order.total_cents)}</span>
-          </div>
+        <PageHeader
+          eyebrow="QUEST CONFIRMED"
+          title="Your next chapter is equipped."
+        >
+          Your simulated order has been saved to your adventure journal.
+        </PageHeader>
+        <Notice className="mt-6">
+          This was a simulation. No payment was taken and no products will be
+          shipped.
+        </Notice>
+        <div className="mt-8">
+          <OrderCard order={order} />
         </div>
-        <div className="mt-8 flex flex-wrap gap-5">
-          <Link
-            to="/products"
-            className="inline-flex items-center gap-2 rounded-md bg-[#204f49] px-6 py-3 text-sm font-medium text-white"
-          >
+        <div className="mt-8 flex flex-wrap gap-3">
+          <LinkButton to="/products">
             Keep exploring <Icon name="arrowRight" className="size-4" />
-          </Link>
-          <Link
-            to="/account/orders"
-            className="inline-flex items-center gap-2 text-sm font-medium text-[#204f49]"
-          >
+          </LinkButton>
+          <LinkButton to="/account/orders" variant="secondary">
             View your orders <Icon name="chevronRight" className="size-4" />
-          </Link>
+          </LinkButton>
         </div>
       </section>
     );
-
   if (loading)
     return (
-      <section className="mx-auto max-w-7xl px-5 py-20" aria-busy="true">
-        <p className="text-[#6e756b]">Gathering your supplies…</p>
+      <section className="shell py-20" aria-busy="true">
+        <p className="text-muted">Gathering your equipment…</p>
       </section>
     );
   if (productsError)
     return (
-      <section className="mx-auto max-w-3xl px-5 py-20">
+      <section className="mx-auto max-w-3xl px-4 py-16 sm:px-8">
         <EmptyState
           icon="bag"
-          title="We couldn’t unpack your cart."
+          title="We couldn’t open your inventory."
           action={<Button onClick={() => reloadProducts()}>Try again</Button>}
         >
           {productsError}
@@ -138,176 +106,108 @@ export default function CartPage() {
     );
   if (!cartItems.length && !cart.length)
     return (
-      <section className="mx-auto max-w-3xl px-5 py-20">
+      <section className="mx-auto max-w-3xl px-4 py-16 sm:px-8">
         <EmptyState
           icon="bag"
-          title="Every adventure starts with an empty bag."
+          title="Your inventory awaits its first treasure."
           action={
-            <Link
-              to="/products"
-              className="inline-flex items-center gap-2 rounded-md bg-[#204f49] px-6 py-3 text-sm font-medium text-white"
-            >
+            <LinkButton to="/products">
               Explore the collection{" "}
               <Icon name="arrowRight" className="size-4" />
-            </Link>
+            </LinkButton>
           }
         >
-          Your cart is empty. A little magic is waiting in the collection.
+          Your cart is empty. Find the equipment for your next great quest.
         </EmptyState>
       </section>
     );
-
   const unavailable =
     cartItems.length !== cart.length ||
     cartItems.some(({ product, quantity }) => product.stock < quantity);
-
   return (
-    <section className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16">
-      <Link
-        to="/products"
-        className="mb-8 inline-flex items-center gap-2 text-sm text-[#6e756b] hover:text-[#204f49]"
-      >
-        <Icon name="arrowLeft" className="size-4" /> Back to the collection
-      </Link>
-      <div className="mb-10">
-        <p className="mb-3 text-xs font-semibold tracking-[0.2em] text-[#c65c36]">
-          YOUR INVENTORY
-        </p>
-        <h1 className="font-serif text-4xl text-[#204f49] sm:text-5xl">
-          A bag full of possibility.
-        </h1>
-        <p className="mt-3 text-sm text-[#6e756b]">
-          {cartCount} {cartCount === 1 ? "treasure" : "treasures"} for your next
-          adventure.
-        </p>
-      </div>
-      <div className="grid items-start gap-10 lg:grid-cols-[1fr_340px]">
-        <div className="overflow-hidden rounded-xl border border-[#dedfd5] bg-white">
-          <ul className="divide-y divide-[#e8e9e0]">
-            {cartItems.map(({ product_id, quantity, product }) => (
-              <li
-                key={product_id}
-                className="flex flex-wrap items-center gap-4 p-5 sm:gap-6 sm:p-6"
-              >
-                <Link
-                  to={`/products/${product_id}`}
-                  className="flex size-24 shrink-0 items-center justify-center rounded-lg bg-[#f1f1e8] sm:size-28"
-                >
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    className="size-full object-contain p-2"
-                  />
-                </Link>
-                <div className="min-w-0 flex-1">
-                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#788071]">
-                    {product.category}
-                  </p>
-                  <Link
-                    to={`/products/${product_id}`}
-                    className="font-serif text-lg text-[#204f49] hover:underline"
-                  >
-                    {product.name}
-                  </Link>
-                  <p className="mt-2 text-sm text-[#6e756b]">
-                    {formatPrice(product.price_cents)} each
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => removeFromCart(product_id)}
-                    disabled={submitting}
-                    className="mt-3 inline-flex items-center gap-1.5 text-xs text-[#8a5743] hover:underline disabled:opacity-40"
-                  >
-                    <Icon name="trash" className="size-3.5" /> Remove
-                  </button>
-                </div>
-                <div className="ml-auto flex items-center gap-5 sm:flex-col sm:items-end sm:gap-4">
-                  <span className="font-medium text-[#204f49]">
-                    {formatPrice(product.price_cents * quantity)}
-                  </span>
-                  <fieldset
-                    disabled={submitting}
-                    className={submitting ? "opacity-50" : ""}
-                  >
-                    <legend className="sr-only">
-                      Quantity for {product.name}
-                    </legend>
-                    <QuantityInput
-                      value={quantity}
-                      max={Math.min(product.stock || 1, 99)}
-                      onChange={(value) => setQuantity(product_id, value)}
-                    />
-                  </fieldset>
-                </div>
-                {quantity > product.stock && (
-                  <p className="w-full text-sm text-[#a43f30]" role="alert">
-                    Only {product.stock} available. Update the quantity or
-                    remove this item.
-                  </p>
-                )}
-              </li>
+    <section className="shell py-10 sm:py-16">
+      <BackLink />
+      <PageHeader eyebrow="YOUR INVENTORY" title="Ready for the next quest.">
+        {cartCount} {cartCount === 1 ? "treasure" : "treasures"} gathered for
+        the adventures ahead.
+      </PageHeader>
+      <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="min-w-0 overflow-hidden rounded-xl border border-line bg-surface">
+          <div className="flex items-center justify-between border-b border-line px-5 py-4 sm:px-6">
+            <h2 className="text-xs font-semibold uppercase tracking-[0.15em] text-muted">
+              Equipment
+            </h2>
+            <span className="text-xs text-gold">
+              {cartCount} {cartCount === 1 ? "item" : "items"}
+            </span>
+          </div>
+          <ul className="divide-y divide-line">
+            {cartItems.map((item) => (
+              <CartItem
+                key={item.product_id}
+                item={item}
+                onQuantityChange={(value) =>
+                  setQuantity(item.product_id, value)
+                }
+                onRemove={() => removeFromCart(item.product_id)}
+                disabled={submitting}
+              />
             ))}
           </ul>
           {cartItems.length !== cart.length && (
-            <div className="border-t border-[#e8e9e0] p-5">
-              <p className="mb-3 text-sm text-[#a43f30]">
-                Some items are no longer available. Clear your cart to start a
-                new collection.
-              </p>
+            <div className="border-t border-line p-5">
+              <Notice variant="error">
+                Some equipment is no longer available. Clear your cart to begin
+                a new collection.
+              </Notice>
               <Button
                 variant="secondary"
                 onClick={clearCart}
                 disabled={submitting}
+                className="mt-4"
               >
                 Clear cart
               </Button>
             </div>
           )}
         </div>
-        <aside className="rounded-xl border border-[#dedfd5] bg-[#efefe5] p-6 sm:p-7">
-          <h2 className="font-serif text-2xl text-[#204f49]">
-            The adventure so far
-          </h2>
-          <dl className="mt-7 space-y-4 text-sm">
-            <div className="flex justify-between gap-5">
-              <dt className="text-[#6e756b]">Subtotal</dt>
-              <dd>{formatPrice(totalCents)}</dd>
+        <aside className="rounded-xl border border-line bg-surface p-5 sm:p-7">
+          <div className="mb-6 flex items-center gap-3">
+            <Icon name="dice" className="size-5 text-gold" />
+            <h2 className="font-serif text-2xl text-ink">Quest summary</h2>
+          </div>
+          <dl className="space-y-4 text-sm">
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted">Equipment subtotal</dt>
+              <dd className="text-ink">{formatPrice(totalCents)}</dd>
             </div>
-            <div className="flex justify-between gap-5">
-              <dt className="text-[#6e756b]">Payment & shipping</dt>
-              <dd className="text-right text-xs leading-5">Simulated only</dd>
-            </div>
-            <div className="flex justify-between border-t border-[#d8dbce] pt-5 text-lg font-semibold text-[#204f49]">
-              <dt>Total</dt>
-              <dd>{formatPrice(totalCents)}</dd>
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted">Order type</dt>
+              <dd className="text-gold">Simulation</dd>
             </div>
           </dl>
-          <p className="mt-5 rounded-md bg-white/60 px-3 py-3 text-xs leading-5 text-[#63705e]">
-            <strong className="block font-semibold text-[#204f49]">
-              This is a practice adventure.
+          <OrderTotal cents={totalCents} />
+          <Notice className="mt-4">
+            <strong className="mb-1 block font-semibold text-ink">
+              A practice quest.
             </strong>
             No real payment or delivery. Your order will be saved to your
             account.
-          </p>
+          </Notice>
           {error && (
-            <p
-              role="alert"
-              className="mt-4 rounded-md bg-[#f9e9e3] p-3 text-sm text-[#a43f30]"
-            >
+            <Notice variant="error" className="mt-4">
               {error}
-            </p>
+            </Notice>
           )}
           {authLoading ? (
-            <p className="mt-6 text-sm text-[#6e756b]">
-              Checking your account…
+            <p className="mt-6 text-sm text-muted">
+              Checking your guild account…
             </p>
           ) : user ? (
             <>
-              <p className="mt-5 text-xs text-[#6e756b]">
+              <p className="mt-5 text-xs text-muted">
                 Ordering as{" "}
-                <strong className="font-medium text-[#204f49]">
-                  {user.name}
-                </strong>
+                <strong className="font-medium text-ink">{user.name}</strong>
               </p>
               <Button
                 className="mt-4 w-full justify-center"
@@ -319,17 +219,17 @@ export default function CartPage() {
               </Button>
             </>
           ) : (
-            <Link
+            <LinkButton
               to="/login"
               state={{ from: "/cart" }}
-              className="mt-6 flex items-center justify-center gap-2 rounded-md bg-[#204f49] px-4 py-3.5 text-sm font-medium text-white"
+              className="mt-6 w-full justify-center"
             >
               Sign in to check out <Icon name="arrowRight" className="size-4" />
-            </Link>
+            </LinkButton>
           )}
-          <div className="mt-4 flex items-center justify-center gap-2 text-[11px] text-[#6e756b]">
-            <Icon name="shield" className="size-3.5" /> Your session stays
-            private
+          <div className="mt-5 flex items-center justify-center gap-2 text-[11px] text-muted">
+            <Icon name="shield" className="size-3.5 text-gold/70" />
+            Your session stays private
           </div>
         </aside>
       </div>
