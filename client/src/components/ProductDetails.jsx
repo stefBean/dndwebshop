@@ -1,37 +1,39 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { useShop } from "../state/shop-context.js";
 import { formatPrice } from "../lib/api.js";
-import { Button, Icon, QuantityInput } from "./ui.jsx";
-
+import {
+  Button,
+  Icon,
+  LinkButton,
+  ProductArtwork,
+  QuantityInput,
+} from "./ui.jsx";
 export default function ProductDetails({ product, compact = false, onClose }) {
   const { addToCart } = useShop();
   const [quantity, setQuantity] = useState(1);
   return (
-    <div className="grid items-center md:grid-cols-2">
-      <div className="product-stage m-4 rounded-lg md:m-0">
-        <img
-          src={product.image}
-          alt={product.name}
-          className="aspect-square w-full object-contain p-6 md:p-8"
-        />
-      </div>
-      <div className={compact ? "p-7 md:p-9" : "px-6 py-8 md:pl-14"}>
-        <p className="eyebrow text-rust">
+    <div className="grid overflow-hidden rounded-xl border border-line bg-surface md:grid-cols-2">
+      <ProductArtwork
+        product={product}
+        className="aspect-square h-full max-h-[560px] border-b border-line md:border-b-0 md:border-r"
+        imageClassName="p-8 sm:p-12"
+      />
+      <div className={compact ? "p-6 sm:p-8" : "p-6 sm:p-10 lg:p-12"}>
+        <p className="eyebrow text-gold">
           {product.category} / NO. {String(product.id).padStart(3, "0")}
         </p>
-        <h1 className="mt-4 font-serif text-4xl leading-tight">
+        <h1 className="mt-5 font-serif text-4xl leading-tight text-ink">
           {product.name}
         </h1>
-        <p className="mt-4 text-2xl text-forest">
+        <p className="mt-5 text-2xl font-medium text-gold">
           {formatPrice(product.price_cents)}
         </p>
-        <p className="mt-5 text-sm leading-7 text-ink/65">
+        <p className="mt-5 text-sm leading-7 text-muted">
           {product.description}
         </p>
-        <p className="mt-6 flex items-center gap-2 text-xs text-forest">
+        <p className="mt-7 flex items-center gap-2 text-xs text-muted">
           <span
-            className={`h-1.5 w-1.5 rounded-full ${product.stock > 0 ? "bg-forest" : "bg-rust"}`}
+            className={`h-1.5 w-1.5 rounded-full ${product.stock > 0 ? "bg-gold" : "bg-primary"}`}
           />
           {product.stock > 0
             ? `${product.stock} available for your next adventure`
@@ -41,7 +43,7 @@ export default function ProductDetails({ product, compact = false, onClose }) {
           <QuantityInput
             value={quantity}
             onChange={setQuantity}
-            max={Math.min(99, product.stock)}
+            max={Math.max(1, Math.min(99, product.stock))}
           />
           <Button
             disabled={product.stock <= 0}
@@ -51,18 +53,20 @@ export default function ProductDetails({ product, compact = false, onClose }) {
             Add to bag
           </Button>
         </div>
-        <div className="mt-7 flex items-center gap-2 border-t border-forest/15 pt-5 text-[11px] text-ink/50">
-          <Icon name="sparkles" size={15} /> A fictional treasure. A very real
-          sense of adventure.
-        </div>
+        <p className="mt-7 flex items-start gap-2 border-t border-line pt-5 text-xs leading-6 text-muted">
+          <Icon name="dice" size={17} className="mt-1 shrink-0 text-gold" />
+          Fictional equipment for legendary campaigns. All orders are
+          simulations.
+        </p>
         {compact && (
-          <Link
+          <LinkButton
             to={`/products/${product.id}`}
+            variant="ghost"
             onClick={onClose}
-            className="mt-5 inline-flex items-center gap-2 text-xs font-semibold text-forest underline underline-offset-4"
+            className="mt-3 px-0 text-xs"
           >
             View full details <Icon name="arrowRight" size={14} />
-          </Link>
+          </LinkButton>
         )}
       </div>
     </div>

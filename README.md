@@ -4,7 +4,7 @@ A React and Tailwind fantasy webshop with reusable product cards, search, produc
 
 ## Frontend
 
-The catalogue uses a fixed three-column product grid, including narrow screens. Reusable `ProductCard`, `ProductDetails`, buttons, dialogs, icons, and quantity controls live in `client/src/components`. Pages are routed with React Router; `ShopProvider` shares the catalogue, signed-in account, and cart. Tailwind CSS is integrated through the Vite plugin, with theme tokens in `client/src/index.css`. All seven fantasy illustrations are local SVGs and need no external image service.
+The black fantasy storefront uses a responsive product grid: one card per row on mobile, two on tablets, and three on desktop. Reusable layouts, navigation, product cards, product artwork, detail views, buttons, dialogs, form fields, notices, and order summaries live in `client/src/components`. Pages are routed with React Router; `ShopProvider` shares catalogue, account, and cart state. Tailwind CSS uses centralized dark theme tokens in `client/src/index.css`. All fantasy illustrations are local SVGs.
 
 Search matches product names, descriptions, and categories as plain text. Category filters, price/name sorting, quick-view dialogs, product detail routes, quantity editing, empty/error states, registration, login/logout, and private order history are included. Challenge routes and intentionally vulnerable behaviors are not implemented.
 
@@ -40,17 +40,19 @@ With `NODE_ENV=production`, demo accounts are not created and existing demo acco
 
 ## Cart and orders
 
-The browser cart stores only product IDs and integer quantities. Names, prices, and availability come from the API. Checkout requires authentication and is clearly a simulation: it never charges money or initiates shipping. The backend validates quantity and stock, calculates totals from SQLite prices, saves order-line snapshots, and reduces stock atomically. Order history is filtered to the signed-in customer's account.
+The cart persists across navigation and browser reloads in `localStorage` under the unchanged key `dice-and-lore.cart.v1`, so existing saved carts remain compatible. The JSON format is only an array of product references and quantities, for example `[{"product_id":1,"quantity":2}]`. IDs must be positive safe integers and quantities whole numbers from 1 to 99. Duplicate IDs are consolidated; malformed entries are ignored without losing valid items. `client/src/lib/cart-storage.js` owns parsing, sanitization, reading, and writing. If storage is blocked or full, the in-memory cart remains usable and the shop shows a notification.
+
+Names, prices, account details, passwords, and authentication tokens are never saved in the cart. Product information comes from the API and authentication remains a server-side session with an HttpOnly cookie. Checkout requires sign-in and is a simulation: it never charges money or initiates shipping. The backend validates quantities and stock, calculates authoritative totals, saves order-line snapshots, and reduces stock atomically. Order history belongs to the signed-in account.
 
 ## Validation
 
 ```sh
-cd client
 npm run build
 npm run lint
-cd ../server
 npm test
 ```
+
+From the repository root, `npm test` runs 10 client cart-storage tests followed by 10 backend integration tests. Client checks cover persistence, reloads, malformed data, integer validation, deduplication, removal of injected account and price fields, and storage failures.
 
 Backend integration tests run against isolated temporary databases and cover catalogue data, login/logout/session expiry, registration, rate limiting, request validation, stock and authoritative prices, persisted orders, account isolation, production demo-account exclusion, and non-destructive initialization. Tests listen on temporary loopback ports; sandboxed execution may require the environment's supported local-network permission flow.
 
