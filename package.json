@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "npm --prefix server start",
-    "dev": "npm --prefix client run dev",
+    "dev": "node scripts/dev.mjs",
     "build": "npm --prefix client run build",
     "lint": "npm --prefix client run lint",
     "test": "npm --prefix client test && npm --prefix server test"

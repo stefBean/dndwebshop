@@ -13,15 +13,20 @@ Search matches product names, descriptions, and categories as plain text. Catego
 Use Node.js 24 (the configured cloud runtime) or a compatible current Node.js release meeting the package engine requirements.
 
 ```sh
+# Install once, from the repository root.
+npm ci --prefix client
+npm ci --prefix server
+
+# Start both the API and frontend with one command.
 cd client
-npm ci
-npm run build
-cd ../server
-npm ci
-npm start
+npm run build:all
 ```
 
-The API runs on port 3001 and serves the built frontend. For frontend development, run `npm run dev` in `client` in a second terminal; Vite proxies `/api` to the backend. By default the SQLite file is `server/shop.db` when the backend starts from `server`. Set `DB_PATH` to an absolute path for another location and `PORT` to override the API port.
+`npm run build:all` starts the API on port 3001 and Vite on port 5173 together. `npm run dev:all` in `client` is equivalent; `npm run dev` from the repository root also starts both. Press Ctrl+C to stop both processes. If either service fails, the other stops too. Vite uses a strict port so a conflict is reported instead of silently starting a second frontend. No additional launcher dependency is required.
+
+The existing `npm run build` still creates production frontend assets; `build:all` is a convenience alias for starting development services. To serve the built frontend through Express, run `npm run build` from the repository root, then `npm start`.
+
+Vite proxies `/api` to the backend. The launcher uses `server` as the API working directory, so SQLite defaults to `server/shop.db`. Set `DB_PATH` to an absolute path for another location. If `PORT` overrides the API port, Vite's proxy uses that same value. Additional Vite flags can be forwarded, for example `npm run build:all -- --host 0.0.0.0`.
 
 The database initializes automatically. `npm run seed` in `server` is an idempotent initialization command; it does not erase orders, accounts, stock, or custom products. The original unchanged generic starter catalogue is migrated to the six fantasy products. Other existing catalogue data is preserved.
 
