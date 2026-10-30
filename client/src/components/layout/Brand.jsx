@@ -12,8 +12,8 @@ export default function Brand({ className = "", ...props }) {
         <Icon name="dice" size={25} />
       </span>
       <span>
-        <span className="block font-serif text-[20px] leading-none tracking-tight sm:text-[27px]">
-          Dice <span className="text-gold italic">&</span> Lore
+        <span className="block font-serif text-[20px] leading-none tracking-tight sm:text-[21px]">
+          Dungeons <span className="text-gold italic">&</span> Dragons Online Shop
         </span>
         <span className="mt-1.5 hidden text-[6px] min-[380px]:block font-semibold tracking-[.23em] text-muted sm:text-[7px]">
           THE ADVENTURER’S EMPORIUM

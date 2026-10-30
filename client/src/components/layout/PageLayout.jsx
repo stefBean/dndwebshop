@@ -22,20 +22,8 @@ export default function PageLayout() {
       <div id="main-content" tabIndex={-1} className="flex-1 outline-none">
         <Outlet />
       </div>
-      <Footer />
-      <div
-        aria-live="polite"
-        aria-atomic="true"
-        role="status"
-        className={`pointer-events-none fixed bottom-6 left-1/2 z-50 w-max max-w-[calc(100%-32px)] -translate-x-1/2 transition-all ${toast ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}
-      >
-        {toast && (
-          <div className="flex items-center gap-3 rounded-lg border border-gold/30 bg-raised px-5 py-4 text-sm text-ink shadow-2xl shadow-black/50">
-            <Icon name="check" size={18} className="shrink-0 text-gold" />
-            <span>{toast}</span>
-          </div>
-        )}
-      </div>
+
+
     </div>
   );
 }

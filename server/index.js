@@ -10,7 +10,7 @@ const server = createApp(db).listen(port, (error) => {
     process.exitCode = 1;
     return;
   }
-  console.log(`Dice & Lore on port ${port}`);
+  console.log(`Dungeon & Dragons online shop ${port}`);
 });
 
 for (const signal of ['SIGTERM', 'SIGINT']) {

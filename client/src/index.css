@@ -7,12 +7,12 @@
   --color-line: #2c2b31;
   --color-muted: #a29eab;
   --color-ink: #eeedf1;
-  --color-gold: #d6b679;
-  --color-primary: #b8323e;
-  --color-primary-hover: #cf3b48;
+  --color-gold: #880080;
+  --color-primary: #880080;
+  --color-primary-hover: #900090;
   --font-sans: "DM Sans", "Segoe UI", sans-serif;
   --font-serif:
-    "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+    "Helvetica", "Arial", Georgia, serif;
 }
 :root {
   font-family: var(--font-sans);
