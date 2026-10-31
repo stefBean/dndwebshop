@@ -1,0 +1,173 @@
+.animated-potion {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  margin: 0;
+}
+
+.potion__art {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.potion__float {
+  animation: potion-float 6s ease-in-out infinite;
+  transform-origin: 300px 300px;
+}
+
+.potion__shadow {
+  animation: potion-shadow 6s ease-in-out infinite;
+  transform-origin: 300px 542px;
+}
+
+.potion__wave--front {
+  animation: potion-wave-front 7s linear infinite;
+}
+
+.potion__wave--back {
+  animation: potion-wave-back 9s linear infinite;
+}
+
+.potion__surface {
+  animation: potion-surface 3.5s ease-in-out infinite alternate;
+  transform-origin: 300px 340px;
+}
+
+.potion__bubble {
+  animation: potion-bubble 5s ease-in infinite;
+  opacity: 0;
+}
+
+.potion__bubble--two {
+  animation-delay: -2.7s;
+  animation-duration: 6s;
+}
+.potion__bubble--three {
+  animation-delay: -1.2s;
+  animation-duration: 7s;
+}
+.potion__bubble--four {
+  animation-delay: -4.1s;
+  animation-duration: 5.5s;
+}
+
+.potion__sparkles {
+  animation: potion-shimmer 5s ease-in-out infinite;
+}
+
+.animated-potion[data-motion="paused"] .potion__float,
+.animated-potion[data-motion="paused"] .potion__shadow,
+.animated-potion[data-motion="paused"] .potion__wave,
+.animated-potion[data-motion="paused"] .potion__surface,
+.animated-potion[data-motion="paused"] .potion__bubble,
+.animated-potion[data-motion="paused"] .potion__sparkles {
+  animation-play-state: paused;
+}
+
+.potion__motion-control {
+  position: absolute;
+  right: 16px;
+  bottom: 10px;
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid #ffffff1c;
+  border-radius: 5px;
+  background: #09090bdd;
+  color: #a9a6b0;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  transition:
+    color 0.2s,
+    border-color 0.2s;
+}
+.potion__motion-control:hover:not(:disabled) {
+  color: #e8e5ef;
+  border-color: #a78bfa70;
+}
+.potion__motion-control:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+@keyframes potion-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(-9px) rotate(1deg);
+  }
+}
+@keyframes potion-shadow {
+  0%,
+  100% {
+    transform: scaleX(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scaleX(0.9);
+    opacity: 0.5;
+  }
+}
+@keyframes potion-wave-front {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-300px);
+  }
+}
+@keyframes potion-wave-back {
+  from {
+    transform: translate(0, -7px);
+  }
+  to {
+    transform: translate(300px, -7px);
+  }
+}
+@keyframes potion-surface {
+  from {
+    transform: translateY(-3px) rotate(-1deg);
+    opacity: 0.4;
+  }
+  to {
+    transform: translateY(3px) rotate(1deg);
+    opacity: 0.8;
+  }
+}
+@keyframes potion-bubble {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.5;
+  }
+  80% {
+    opacity: 0.35;
+  }
+  100% {
+    transform: translateY(-155px);
+    opacity: 0;
+  }
+}
+@keyframes potion-shimmer {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animated-potion * {
+    animation: none !important;
+  }
+}

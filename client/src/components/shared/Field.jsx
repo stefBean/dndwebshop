@@ -30,7 +30,7 @@ export function Field({ label, id, hint, error, className = "", ...props }) {
         </p>
       )}
       {error && (
-        <p id={`${fieldId}-error`} className="mt-2 text-xs text-[#f6b0b6]">
+        <p id={`${fieldId}-error`} className="mt-2 text-xs text-ink">
           {error}
         </p>
       )}

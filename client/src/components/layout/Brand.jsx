@@ -1,22 +1,26 @@
 import { Link } from "react-router-dom";
-import { Icon } from "../ui.jsx";
+
 export default function Brand({ className = "", ...props }) {
   return (
     <Link
       to="/"
-      aria-label="Dice and Lore home"
-      className={`group inline-flex shrink-0 items-center gap-2 text-ink sm:gap-2.5 ${className}`}
+      aria-label="Dungeons & Dragons Shop home"
+      className={`group inline-flex shrink-0 items-center gap-2 text-white sm:gap-3 ${className}`}
       {...props}
     >
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-gold/30 bg-gold/5 text-gold transition-colors group-hover:border-gold/60 sm:size-11">
-        <Icon name="dice" size={25} />
-      </span>
-      <span>
-        <span className="block font-serif text-[20px] leading-none tracking-tight sm:text-[21px]">
-          Dungeons <span className="text-gold italic">&</span> Dragons Online Shop
+      <img
+        src="/images/dnd-symbol.svg"
+        alt=""
+        aria-hidden="true"
+        className="size-8 shrink-0 sm:size-10"
+      />
+      <span className="flex flex-col items-center">
+        <span className="font-serif text-[11px] font-bold leading-[1.05] tracking-[.06em] sm:text-[16px]">
+          <span className="block">DUNGEONS</span>
+          <span className="block">&amp; DRAGONS</span>
         </span>
-        <span className="mt-1.5 hidden text-[6px] min-[380px]:block font-semibold tracking-[.23em] text-muted sm:text-[7px]">
-          THE ADVENTURER’S EMPORIUM
+        <span className="mt-1.5 text-[7px] font-medium tracking-[.35em] text-white/65 sm:text-[8px]">
+          SHOP
         </span>
       </span>
     </Link>

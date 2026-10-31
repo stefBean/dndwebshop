@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "seed": "node seed.js",
+    "products:import": "node import-products.js",
     "test": "node --test test/*.test.js"
   },
   "keywords": [],

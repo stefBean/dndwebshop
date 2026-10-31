@@ -26,7 +26,7 @@ function Navigation({ mobile = false, onNavigate }) {
           end={end}
           onClick={onNavigate}
           className={({ isActive }) =>
-            `flex items-center text-[13px] font-medium transition-colors hover:text-gold ${mobile ? "rounded-md border px-4 py-3" : "border-b-2"} ${isActive ? (mobile ? "border-gold/20 bg-gold/5 text-gold" : "border-gold text-gold") : "border-transparent text-muted"}`
+            `flex items-center text-[13px] font-medium transition-colors hover:text-accent ${mobile ? "rounded-md border px-4 py-3" : "border-b-2"} ${isActive ? (mobile ? "border-line bg-raised text-ink" : "border-accent text-ink") : "border-transparent text-muted"}`
           }
         >
           {label}
@@ -58,7 +58,7 @@ export default function Header() {
     }
   }
   const actionClass =
-    "inline-flex min-h-11 min-w-8 items-center justify-center gap-2 rounded-md text-sm text-muted transition-colors hover:text-gold";
+    "inline-flex min-h-11 min-w-8 items-center justify-center gap-2 rounded-md text-sm text-muted transition-colors hover:text-accent";
   return (
     <header
       className="sticky top-0 z-30 border-b border-line bg-void/95 backdrop-blur-xl"
@@ -112,7 +112,7 @@ export default function Header() {
             className={`${actionClass} gap-1.5`}
           >
             <Icon name="bag" size={19} />
-            <span className="flex size-[19px] items-center justify-center rounded-full border border-gold/25 bg-gold/10 text-[10px] font-semibold text-gold">
+            <span className="flex size-[19px] items-center justify-center rounded-full border border-line bg-raised text-[10px] font-semibold text-ink">
               {cartCount}
             </span>
           </Link>
@@ -140,7 +140,7 @@ export default function Header() {
               type="button"
               onClick={logout}
               disabled={signingOut}
-              className="flex min-h-11 w-full items-center gap-2 rounded-md border border-line px-4 text-sm text-muted hover:text-gold disabled:opacity-40"
+              className="flex min-h-11 w-full items-center gap-2 rounded-md border border-line px-4 text-sm text-muted hover:text-accent disabled:opacity-40"
             >
               <Icon name="logout" size={17} />
               Sign out

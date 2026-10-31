@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { hashPassword, hashPasswordSync, verifyPassword, tokenHash } from './security.js';
+import { getProduct, getProducts } from './products.js';
 
 const cookieName = 'dice_lore_session';
 const sessionLifetime = 24 * 60 * 60 * 1000;
@@ -93,11 +94,10 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
 
   app.get('/api/products', (req, res) => {
     const search = typeof req.query.search === 'string' ? req.query.search.slice(0, 200) : '';
-    const products = db.prepare('SELECT * FROM products ORDER BY id').all();
-    res.json(search ? products.filter((product) => `${product.name} ${product.description} ${product.category}`.toLowerCase().includes(search.toLowerCase())) : products);
+    res.json(getProducts(db, search));
   });
   app.get('/api/products/:id', (req, res) => {
-    const product = validId(req.params.id) ? db.prepare('SELECT * FROM products WHERE id = ?').get(Number(req.params.id)) : null;
+    const product = validId(req.params.id) ? getProduct(db, Number(req.params.id)) : null;
     if (!product) return res.status(404).json({ error: 'This product could not be found.' });
     res.json(product);
   });
@@ -145,7 +145,7 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
   });
   const placeOrder = db.transaction((userId, items) => {
     const rows = items.map((item) => {
-      const product = db.prepare('SELECT * FROM products WHERE id = ?').get(item.product_id);
+      const product = getProduct(db, item.product_id);
       if (!product) throw Object.assign(new Error('One of the products is no longer available. Please update your cart.'), { status: 400 });
       if (product.stock < item.quantity) throw Object.assign(new Error(`Only ${product.stock} of ${product.name} are available.`), { status: 409 });
       return { ...item, name: product.name, price_cents: product.price_cents };

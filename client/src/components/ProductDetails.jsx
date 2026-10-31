@@ -19,13 +19,13 @@ export default function ProductDetails({ product, compact = false, onClose }) {
         imageClassName="p-8 sm:p-12"
       />
       <div className={compact ? "p-6 sm:p-8" : "p-6 sm:p-10 lg:p-12"}>
-        <p className="eyebrow text-gold">
+        <p className="eyebrow text-ink">
           {product.category} / NO. {String(product.id).padStart(3, "0")}
         </p>
         <h1 className="mt-5 font-serif text-4xl leading-tight text-ink">
           {product.name}
         </h1>
-        <p className="mt-5 text-2xl font-medium text-gold">
+        <p className="mt-5 text-2xl font-medium text-ink">
           {formatPrice(product.price_cents)}
         </p>
         <p className="mt-5 text-sm leading-7 text-muted">
@@ -33,7 +33,7 @@ export default function ProductDetails({ product, compact = false, onClose }) {
         </p>
         <p className="mt-7 flex items-center gap-2 text-xs text-muted">
           <span
-            className={`h-1.5 w-1.5 rounded-full ${product.stock > 0 ? "bg-gold" : "bg-primary"}`}
+            className={`h-1.5 w-1.5 rounded-full ${product.stock > 0 ? "bg-accent" : "bg-primary"}`}
           />
           {product.stock > 0
             ? `${product.stock} available for your next adventure`
@@ -54,7 +54,7 @@ export default function ProductDetails({ product, compact = false, onClose }) {
           </Button>
         </div>
         <p className="mt-7 flex items-start gap-2 border-t border-line pt-5 text-xs leading-6 text-muted">
-          <Icon name="dice" size={17} className="mt-1 shrink-0 text-gold" />
+          <Icon name="dice" size={17} className="mt-1 shrink-0 text-ink" />
           Fictional equipment for legendary campaigns. All orders are
           simulations.
         </p>

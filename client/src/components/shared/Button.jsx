@@ -1,12 +1,12 @@
 import { Link } from "react-router-dom";
 const styles = {
   primary:
-    "border-primary bg-primary text-white hover:border-primary-hover hover:bg-primary-hover shadow-[0_4px_20px_#b8323e18]",
+    "border-primary bg-primary text-black hover:border-primary-hover hover:bg-primary-hover",
   secondary:
-    "border-line bg-raised text-ink hover:border-gold/50 hover:bg-surface",
+    "border-line bg-raised text-ink hover:border-accent/50 hover:bg-surface",
   ghost:
     "border-transparent bg-transparent text-muted hover:bg-raised hover:text-ink",
-  accent: "border-gold bg-gold text-void hover:bg-gold/90",
+  accent: "border-accent bg-accent text-black hover:bg-[#c4b5fd]",
 };
 function buttonClass(variant, className) {
   return `inline-flex min-h-11 items-center justify-center gap-2 rounded-md border px-5 py-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${styles[variant] || styles.primary} ${className}`;

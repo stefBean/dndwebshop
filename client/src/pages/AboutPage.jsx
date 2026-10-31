@@ -8,7 +8,7 @@ const values = [
   },
   {
     icon: "book",
-    title: "A little more lore",
+    title: "Made for the adventure",
     description:
       "From a first encounter to a final quest, every adventurer deserves a few extraordinary essentials.",
   },
@@ -22,7 +22,7 @@ const values = [
 function StoryValue({ icon, title, description }) {
   return (
     <section className="rounded-xl border border-line bg-surface p-6 sm:p-7">
-      <Icon name={icon} size={25} className="text-gold" />
+      <Icon name={icon} size={25} className="text-ink" />
       <h2 className="mt-5 font-serif text-2xl text-ink">{title}</h2>
       <p className="mt-3 text-sm leading-7 text-muted">{description}</p>
     </section>
@@ -39,16 +39,16 @@ export default function AboutPage() {
               <>
                 Every great story
                 <br />
-                starts with a little lore.
+                starts with a little imagination.
               </>
             }
           >
-            Dice & Lore is an emporium for adventurers, world builders, and the
-            ones who never leave a dungeon unexplored.
+            Dungeons & Dragons Shop is a place for adventurers, world builders,
+            and the ones who never leave a dungeon unexplored.
           </PageHeader>
           <p className="mt-5 max-w-lg text-sm leading-8 text-muted">
             We believe the best adventures begin around a table, with a few
-            friends, a character sheet, and a roll of the dice. Discover six
+            friends, a character sheet, and a roll of the dice. Discover
             carefully imagined treasures, from shimmering dice sets to bottled
             starlight, and find something for your next chapter.
           </p>

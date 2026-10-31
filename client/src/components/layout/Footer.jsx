@@ -25,7 +25,7 @@ export default function Footer() {
             <Link
               key={to}
               to={to}
-              className="transition-colors hover:text-gold"
+              className="transition-colors hover:text-accent"
             >
               {label}
             </Link>
@@ -34,11 +34,11 @@ export default function Footer() {
       </div>
       <div className="shell flex flex-col justify-between gap-3 border-t border-line py-5 text-[10px] leading-5 text-muted sm:flex-row sm:items-center">
         <span>
-          © {new Date().getFullYear()} Dice & Lore. A fictional shop for real
-          imaginations.
+          © {new Date().getFullYear()} Dungeons & Dragons Shop. A fictional
+          shop for real imaginations.
         </span>
         <span className="flex items-center gap-2">
-          <Icon name="shield" size={13} className="shrink-0 text-gold" />
+          <Icon name="shield" size={13} className="shrink-0 text-ink" />
           Simulated orders. No payments. No shipping.
         </span>
       </div>

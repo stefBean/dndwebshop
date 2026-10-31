@@ -1,10 +1,12 @@
-# Dice & Lore
+# Dungeons & Dragons Shop
 
 A React and Tailwind fantasy webshop with reusable product cards, search, product details, a persistent cart, customer accounts, and simulated orders. The Express API stores products, password hashes, sessions, and orders in SQLite. Security challenges are intentionally outside this basic shop.
 
 ## Frontend
 
-The black fantasy storefront uses a responsive product grid: one card per row on mobile, two on tablets, and three on desktop. Reusable layouts, navigation, product cards, product artwork, detail views, buttons, dialogs, form fields, notices, and order summaries live in `client/src/components`. Pages are routed with React Router; `ShopProvider` shares catalogue, account, and cart state. Tailwind CSS uses centralized dark theme tokens in `client/src/index.css`. All fantasy illustrations are local SVGs.
+The storefront uses a simple black-and-white interface with purple accents and full-color product artwork. Its responsive product grid shows one card per row on mobile, two on tablets, and three on desktop. Reusable layouts, navigation, product cards, product artwork, detail views, buttons, dialogs, form fields, notices, and order summaries live in `client/src/components`. Pages are routed with React Router; `ShopProvider` shares catalogue, account, and cart state. Tailwind CSS uses centralized theme tokens in `client/src/index.css`. All fantasy illustrations are local SVGs.
+
+The homepage's reusable `AnimatedPotion` component renders moving purple liquid with CSS animations. Its pause/play control stops or resumes the animation; the system's reduced-motion preference displays a still version automatically. No animation library or external asset requests are required.
 
 Search matches product names, descriptions, and categories as plain text. Category filters, price/name sorting, quick-view dialogs, product detail routes, quantity editing, empty/error states, registration, login/logout, and private order history are included. Challenge routes and intentionally vulnerable behaviors are not implemented.
 
@@ -26,9 +28,40 @@ npm run build:all
 
 The existing `npm run build` still creates production frontend assets; `build:all` is a convenience alias for starting development services. To serve the built frontend through Express, run `npm run build` from the repository root, then `npm start`.
 
-Vite proxies `/api` to the backend. The launcher uses `server` as the API working directory, so SQLite defaults to `server/shop.db`. Set `DB_PATH` to an absolute path for another location. If `PORT` overrides the API port, Vite's proxy uses that same value. Additional Vite flags can be forwarded, for example `npm run build:all -- --host 0.0.0.0`.
+Vite proxies `/api` to the backend. SQLite always defaults to `server/shop.db`, regardless of the command working directory. Set `DB_PATH` to an absolute path for another location; relative `DB_PATH` values resolve under `server/`. If `PORT` overrides the API port, Vite's proxy uses that same value. Additional Vite flags can be forwarded, for example `npm run build:all -- --host 0.0.0.0`.
 
-The database initializes automatically. `npm run seed` in `server` is an idempotent initialization command; it does not erase orders, accounts, stock, or custom products. The original unchanged generic starter catalogue is migrated to the six fantasy products. Other existing catalogue data is preserved.
+The database initializes automatically. A new, empty database imports the starter products once from `server/data/products.json` and records that initialization. Existing product rows are never replaced during startup. Subsequent restarts preserve edited names, prices, images, stock, and even a deliberately empty catalogue. `npm run seed` in `server` is an idempotent initialization command; it does not restore deleted products or erase customer data.
+
+## Product database
+
+The product source of truth is the SQLite `products` table. React loads it through `GET /api/products`; product details, search, prices, availability, and checkout all read the stored rows. No product array is embedded in the frontend and no sample-data fallback is used for requests. The starter JSON is bootstrap/import data, not a live catalogue. Editing that file alone does not change an existing database.
+
+To maintain the catalogue, edit `server/shop.db` with a SQLite editor or import a JSON file. For example, save this as a new file:
+
+```json
+[
+  {
+    "id": 7,
+    "name": "Arcane Lantern",
+    "description": "A lantern for your next dungeon expedition.",
+    "price_cents": 1250,
+    "category": "Gear",
+    "image": "/images/adventurer-kit.svg",
+    "tag": "New",
+    "stock": 10
+  }
+]
+```
+
+From the repository root, import it using an absolute file path:
+
+```sh
+npm --prefix server run products:import -- /absolute/path/to/products.json
+```
+
+Matching IDs are updated; new IDs are inserted; products absent from the file are preserved. The complete file is validated before the database is opened, and writes are atomic. IDs must be positive integers, prices use integer euro cents, and stock is a nonnegative integer. Image paths refer to local assets in `client/public/images`. To intentionally import the starter data again, run `npm --prefix server run products:import -- data/products.json`; this explicit command updates the six starter IDs, including their stock, so use it only when desired.
+
+Refresh the shop after importing or editing the database. Catalogue categories and counts come from the stored products. Docker retains the same database at `/data/shop.db` in the named volume. SQLite files, customer accounts, sessions, and orders are excluded from Git; share the import JSON rather than a live database.
 
 ## Development accounts
 
@@ -57,9 +90,9 @@ npm run lint
 npm test
 ```
 
-From the repository root, `npm test` runs 10 client cart-storage tests followed by 10 backend integration tests. Client checks cover persistence, reloads, malformed data, integer validation, deduplication, removal of injected account and price fields, and storage failures.
+From the repository root, `npm test` runs 10 client cart-storage tests followed by 20 backend integration tests. Client checks cover persistence, reloads, malformed data, integer validation, deduplication, removal of injected account and price fields, and storage failures.
 
-Backend integration tests run against isolated temporary databases and cover catalogue data, login/logout/session expiry, registration, rate limiting, request validation, stock and authoritative prices, persisted orders, account isolation, production demo-account exclusion, and non-destructive initialization. Tests listen on temporary loopback ports; sandboxed execution may require the environment's supported local-network permission flow.
+Backend integration tests run against isolated temporary databases and cover product import validation and rollback, database-backed API responses, persistence across restarts, one-time seeding, stable database paths, literal SQL search, catalogue data, login/logout/session expiry, registration, rate limiting, request validation, stock and authoritative prices, persisted orders, account isolation, production demo-account exclusion, and non-destructive initialization. Tests listen on temporary loopback ports; sandboxed execution may require the environment's supported local-network permission flow.
 
 ## API
 
@@ -75,3 +108,9 @@ Backend integration tests run against isolated temporary databases and cover cat
 | POST | `/api/orders` | `{ items: [{ product_id, quantity }] }`; create simulated order |
 
 JSON mutation requests must use `Content-Type: application/json`, except the bodyless logout request. Errors return `{ error }` with the appropriate HTTP status. Product and order prices use integer euro cents.
+
+## Branding assets
+
+The monochrome Dungeons & Dragons dragon-ampersand symbol is provided by [Simple Icons](https://github.com/simple-icons/simple-icons/blob/develop/icons/dungeonsanddragons.svg) under CC0 and is stored locally in `client/public/images/dnd-symbol.svg`. The shop wordmark is a local typographic composition inspired by the Dungeons & Dragons identity, with “Shop” added. Product illustrations remain in color.
+
+The legacy demo-account email addresses and `dice-and-lore.cart.v1` storage key are retained for compatibility with existing accounts and saved carts.

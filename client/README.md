@@ -16,13 +16,19 @@ The React Compiler is not enabled on this template because of its impact on dev 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
 
 
-## start project
-```bash
-cd server
-npm ci
-npm build
+## Start the shop
+
+Install both applications once from the repository root:
+
+```sh
+npm ci --prefix client
+npm ci --prefix server
 ```
-second terminal:
-```bash
-cd client && npm run dev
+
+Then start the API and Vite together from this directory:
+
+```sh
+npm run build:all
 ```
+
+Press Ctrl+C to stop both. See [the project README](../README.md) for SQLite product storage, imports, accounts, and validation.

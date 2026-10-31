@@ -51,11 +51,11 @@ export default function ShopPage({ featured = false }) {
         <PageHeader
           as={featured ? "h2" : "h1"}
           eyebrow="THE COLLECTION"
-          title="Treasures worth the quest."
+          title="Shop the collection."
           aside={
             <span className="flex items-center gap-2">
-              <Icon name="sparkles" size={15} className="text-gold" />
-              {products.length} items in the vault
+              <Icon name="sparkles" size={15} className="text-ink" />
+              {products.length} items to explore
             </span>
           }
         >
@@ -83,7 +83,7 @@ export default function ShopPage({ featured = false }) {
                 {search && <> for “{search}”</>}
                 <button
                   type="button"
-                  className="ml-3 text-gold underline underline-offset-4"
+                  className="ml-3 text-ink underline underline-offset-4"
                   onClick={reset}
                 >
                   Clear filters
@@ -101,6 +101,10 @@ export default function ShopPage({ featured = false }) {
                 }
               >
                 {error}
+              </EmptyState>
+            ) : products.length === 0 ? (
+              <EmptyState title="No products available yet" icon="package">
+                Products will appear here once they are added to the shop.
               </EmptyState>
             ) : filtered.length ? (
               <ProductGrid
