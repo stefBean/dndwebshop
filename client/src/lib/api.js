@@ -23,3 +23,5 @@ export const formatPrice = (cents) =>
   new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR" }).format(
     cents / 100,
   );
+
+

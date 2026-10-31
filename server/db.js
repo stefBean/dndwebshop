@@ -96,12 +96,9 @@ export function initializeDatabase(db, {
   return db;
 }
 
-export function openDatabase(filename, options) {
-  const db = new Database(resolveDatabasePath(filename));
-  try {
-    return initializeDatabase(db, options);
-  } catch (error) {
-    db.close();
-    throw error;
-  }
+
+
+
+export function openDatabase(filename = process.env.DB_PATH || 'shop.db', options) {
+  return initializeDatabase(new Database(filename), options);
 }
