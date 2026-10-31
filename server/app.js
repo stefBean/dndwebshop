@@ -17,7 +17,17 @@ function cookieToken(req) {
 export function createApp(db, { production = process.env.NODE_ENV === 'production' } = {}) {
   const app = express();
   app.disable('x-powered-by');
-  const cookieOptions = { httpOnly: true, sameSite: 'lax', secure: production, path: '/' };
+
+  const internalHttpTest = process.env.INTERNAL_HTTP_TEST === 'true';
+  const allowDemoAccounts =
+      !production ||
+      (internalHttpTest && process.env.ENABLE_DEMO_ACCOUNTS === 'true');
+  const cookieOptions = {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: production && !internalHttpTest,
+    path: '/'
+  };
   const dummyHash = hashPasswordSync(randomBytes(24).toString('hex'));
   const attempts = new Map();
 
@@ -37,7 +47,11 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
       if (origin) {
         try {
           const url = new URL(origin);
-          if (url.host !== req.get('host') || !['http:', 'https:'].includes(url.protocol) || (production && url.protocol !== 'https:')) {
+          if (
+              url.host !== req.get('host') ||
+              !['http:', 'https:'].includes(url.protocol) ||
+              (production && !internalHttpTest && url.protocol !== 'https:')
+          ) {
             return res.status(403).json({ error: 'This request came from an untrusted origin.' });
           }
         } catch {
@@ -56,7 +70,9 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     if (token) {
       const user = db.prepare(`SELECT users.* FROM sessions JOIN users ON users.id = sessions.user_id
         WHERE sessions.token_hash = ? AND sessions.expires_at > ?`).get(tokenHash(token), Date.now());
-      if (user && !(production && user.is_demo)) req.user = publicUser(user);
+      if (user && (allowDemoAccounts || !user.is_demo)) {
+        req.user = publicUser(user);
+      }
     }
     next();
   });
@@ -110,7 +126,11 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     }
     const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.trim().toLowerCase());
     const verified = await verifyPassword(password, user?.password_hash || dummyHash);
-    if (!user || !verified || (production && user.is_demo)) return res.status(401).json({ error: 'That email and password do not match.' });
+    if (!user || !verified || (!allowDemoAccounts && user.is_demo)) {
+      return res.status(401).json({
+        error: 'That email and password do not match.'
+      });
+    }
     startSession(req, res, user);
     res.json({ user: publicUser(user) });
   });

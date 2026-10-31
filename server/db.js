@@ -10,7 +10,14 @@ const originalFixtures = [
   ['Water Bottle', 'Steel, 750 ml', 1990],
 ];
 
-export function initializeDatabase(db, { demoAccounts = process.env.NODE_ENV !== 'production' } = {}) {
+export function initializeDatabase(db, {
+  demoAccounts =
+      process.env.NODE_ENV !== 'production' ||
+      (
+          process.env.INTERNAL_HTTP_TEST === 'true' &&
+          process.env.ENABLE_DEMO_ACCOUNTS === 'true'
+      )
+} = {}) {
   db.pragma('foreign_keys = ON');
   db.pragma('journal_mode = WAL');
   db.exec(`
