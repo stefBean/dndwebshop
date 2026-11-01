@@ -14,10 +14,9 @@ export function resolveDatabasePath(filename = process.env.DB_PATH || DEFAULT_DB
   return filename === ':memory:' ? filename : path.resolve(serverDirectory, filename);
 }
 
+
 export function initializeDatabase(db, {
-  demoAccounts = process.env.NODE_ENV !== 'production',
   seedProducts = true,
-export function initializeDatabase(db, {
   demoAccounts =
       process.env.NODE_ENV !== 'production' ||
       (
