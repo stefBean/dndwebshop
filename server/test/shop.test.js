@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -10,9 +10,9 @@ import { openDatabase, initializeDatabase } from '../db.js';
 
 const password = 'RollForAdventure!24';
 
-async function fixture(t, { filename = ':memory:', demoAccounts = true, production = false } = {}) {
+async function fixture(t, { filename = ':memory:', demoAccounts = true, production = false, challengeOptions } = {}) {
   const db = openDatabase(filename, { demoAccounts });
-  const server = createApp(db, { production }).listen(0, '127.0.0.1');
+  const server = createApp(db, { production, challengeOptions }).listen(0, '127.0.0.1');
   await once(server, 'listening');
   const base = `http://127.0.0.1:${server.address().port}`;
   t.after(async () => {
@@ -157,6 +157,41 @@ test('production excludes demo credentials even when a development database is r
   const db = openDatabase(':memory:', { demoAccounts: false });
   assert.equal(db.prepare('SELECT COUNT(*) AS count FROM users').get().count, 0);
   db.close();
+});
+
+test('CWE-779 challenge logs full headers and body without limits', async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'dice-lore-log-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const logPath = path.join(directory, 'app.log');
+  const { request } = await fixture(t, { challengeOptions: { logPath } });
+  const payload = 'A'.repeat(50 * 1024);
+  const response = await request('/api/log.flood', {
+    method: 'POST',
+    body: { text: payload },
+    headers: { Authorization: 'Bearer secret-token', Cookie: 'session=leaky' },
+  });
+  assert.equal(response.status, 200);
+  const contents = await readFile(logPath, 'utf8');
+  assert.ok(contents.includes(payload));
+  assert.ok(contents.includes('secret-token'));
+  assert.ok(contents.includes('leaky'));
+  const status = await (await request('/api/challenges/log-flood/status')).json();
+  assert.ok(status.sizeBytes > 50 * 1024);
+  assert.equal(status.achieved, false);
+});
+
+test('challenge reset clears only the log and can require an admin token', async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'dice-lore-log-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const logPath = path.join(directory, 'app.log');
+  const { request } = await fixture(t, { challengeOptions: { logPath, adminToken: 'admin-secret' } });
+  await request('/api/log.flood', { method: 'POST', body: { text: 'x' } });
+  assert.equal((await request('/api/challenges/log-flood/reset', { method: 'POST' })).status, 403);
+  const reset = await request('/api/challenges/log-flood/reset', { method: 'POST', headers: { 'x-challenge-token': 'admin-secret' } });
+  assert.equal(reset.status, 200);
+  const body = await reset.json();
+  assert.equal(body.sizeBytes, 0);
+  assert.equal((await (await request('/api/challenges/log-flood/status')).json()).sizeBytes, 0);
 });
 
 test('database initialization is repeatable and preserves custom catalogue data and stock', () => {

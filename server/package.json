@@ -7,6 +7,7 @@
     "start": "node index.js",
     "seed": "node seed.js",
     "products:import": "node import-products.js",
+    "reset:challenge": "node reset-challenge.js",
     "test": "node --test test/*.test.js"
   },
   "keywords": [],
