@@ -23,7 +23,7 @@ export default function CollectionToolbar({
             type="button"
             onClick={() => onSearch("")}
             aria-label="Clear search"
-            className="p-2 text-muted hover:text-gold"
+            className="p-2 text-muted hover:text-accent"
           >
             <Icon name="close" size={15} />
           </button>

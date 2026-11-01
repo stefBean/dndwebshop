@@ -16,7 +16,7 @@ export function OrderCard({ order }) {
             })}
           </p>
         </div>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/20 bg-gold/5 px-3 py-1.5 text-[10px] font-medium text-gold">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-raised px-3 py-1.5 text-[10px] font-medium text-ink">
           <Icon name="check" className="size-3" />
           Simulation complete
         </span>

@@ -1,9 +1,8 @@
 import { useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { useShop } from "../../state/shop-context.js";
-import { Icon } from "../ui.jsx";
 import Header from "./Header.jsx";
-import Footer from "./Footer.jsx";
+
 export default function PageLayout() {
   const { toast } = useShop();
   const { pathname } = useLocation();
@@ -14,7 +13,7 @@ export default function PageLayout() {
     <div className="flex min-h-screen flex-col bg-void text-ink">
       <a
         href="#main-content"
-        className="sr-only z-50 rounded bg-gold px-5 py-3 font-semibold text-void focus:not-sr-only focus:absolute focus:left-3 focus:top-3"
+        className="sr-only z-50 rounded bg-accent px-5 py-3 font-semibold text-void focus:not-sr-only focus:absolute focus:left-3 focus:top-3"
       >
         Skip to content
       </a>
@@ -22,8 +21,14 @@ export default function PageLayout() {
       <div id="main-content" tabIndex={-1} className="flex-1 outline-none">
         <Outlet />
       </div>
-
-
+      <p
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {toast}
+      </p>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { hashPassword, hashPasswordSync, verifyPassword, tokenHash } from './security.js';
+import { getProduct, getProducts } from './products.js';
 
 const cookieName = 'dice_lore_session';
 const sessionLifetime = 24 * 60 * 60 * 1000;
@@ -109,17 +110,17 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
 
   app.get('/api/products', (req, res) => {
     const search = typeof req.query.search === 'string' ? req.query.search.slice(0, 200) : '';
-    const products = db.prepare('SELECT * FROM products ORDER BY id').all();
-    res.json(search ? products.filter((product) => `${product.name} ${product.description} ${product.category}`.toLowerCase().includes(search.toLowerCase())) : products);
+    res.json(getProducts(db, search));
   });
+  
   app.get('/api/products/:id', (req, res) => {
-    const product = validId(req.params.id) ? db.prepare('SELECT * FROM products WHERE id = ?').get(Number(req.params.id)) : null;
+    const product = validId(req.params.id) ? getProduct(db, Number(req.params.id)) : null;
     if (!product) return res.status(404).json({ error: 'This product could not be found.' });
     res.json(product);
   });
 
   app.get('/api/auth/me', (req, res) => res.json({ user: req.user || null }));
-  app.post('/api/auth/login', authLimit, async (req, res) => {
+  /*app.post('/api/auth/login', authLimit, async (req, res) => {
     const { email, password } = req.body || {};
     if (typeof email !== 'string' || email.length > 254 || typeof password !== 'string' || password.length > 128) {
       return res.status(400).json({ error: 'Enter a valid email address and password.' });
@@ -133,14 +134,44 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     }
     startSession(req, res, user);
     res.json({ user: publicUser(user) });
+  });*/
+
+  app.post('/api/auth/login', authLimit, (req, res) => {   // For client side hashing
+    const { email, password } = req.body || {};
+  
+    if (
+      typeof email !== 'string' ||
+      email.length > 254 ||
+      typeof password !== 'string' ||
+      !/^[a-f0-9]{32}$/i.test(password)
+    ) {
+      return res.status(400).json({ error: 'Enter a valid email address and password hash.' });
+    }
+  
+    const user = db
+      .prepare('SELECT * FROM users WHERE email = ?')
+      .get(email.trim().toLowerCase());
+  
+    const matches =
+      user &&
+      !(production && user.is_demo) &&
+      user.password_hash === password.toLowerCase();
+  
+    if (!matches) {
+      return res.status(401).json({ error: 'That email and password do not match.' });
+    }
+  
+    startSession(req, res, user);
+    res.json({ user: publicUser(user) });
   });
+
   app.post('/api/auth/register', authLimit, async (req, res) => {
     const { name, email, password } = req.body || {};
     if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 80) return res.status(400).json({ error: 'Enter a name between 2 and 80 characters.' });
     if (typeof email !== 'string' || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return res.status(400).json({ error: 'Enter a valid email address.' });
-    if (typeof password !== 'string' || password.length < 12 || password.length > 128 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password)) {
-      return res.status(400).json({ error: 'Use 12–128 characters with uppercase, lowercase, and a number.' });
-    }
+    if (typeof password !== 'string' || !/^[a-f0-9]{32}$/i.test(password)) {
+      return res.status(400).json({ error: 'Invalid hash.' });
+    }  
     const normalized = email.trim().toLowerCase();
     const passwordHash = await hashPassword(password);
     const result = db.prepare('INSERT OR IGNORE INTO users (name, email, password_hash) VALUES (?, ?, ?)').run(name.trim(), normalized, passwordHash);
@@ -149,6 +180,9 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     startSession(req, res, user);
     res.status(201).json({ user: publicUser(user) });
   });
+  
+  
+  
   app.post('/api/auth/logout', (req, res) => {
     const token = cookieToken(req);
     if (token) db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(tokenHash(token));
@@ -165,7 +199,7 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
   });
   const placeOrder = db.transaction((userId, items) => {
     const rows = items.map((item) => {
-      const product = db.prepare('SELECT * FROM products WHERE id = ?').get(item.product_id);
+      const product = getProduct(db, item.product_id);
       if (!product) throw Object.assign(new Error('One of the products is no longer available. Please update your cart.'), { status: 400 });
       if (product.stock < item.quantity) throw Object.assign(new Error(`Only ${product.stock} of ${product.name} are available.`), { status: 409 });
       return { ...item, name: product.name, price_cents: product.price_cents };

@@ -13,7 +13,7 @@ export function OrderItems({ items }) {
               {item.quantity} × {formatPrice(item.price_cents)}
             </p>
           </div>
-          <span className="whitespace-nowrap font-medium text-gold">
+          <span className="whitespace-nowrap font-medium text-ink">
             {formatPrice(item.price_cents * item.quantity)}
           </span>
         </li>
@@ -25,7 +25,7 @@ export function OrderTotal({ label = "Total", cents }) {
   return (
     <div className="flex items-center justify-between gap-4 border-t border-line py-5 font-semibold">
       <span className="text-sm text-ink">{label}</span>
-      <span className="text-xl text-gold">{formatPrice(cents)}</span>
+      <span className="text-xl text-ink">{formatPrice(cents)}</span>
     </div>
   );
 }

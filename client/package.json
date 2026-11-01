@@ -13,6 +13,8 @@
     "test": "node --test test/*.test.js"
   },
   "dependencies": {
+    "blueimp-md5": "^2.19.0",
+    "client": "^0.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.4"

@@ -1,18 +1,17 @@
 @import "tailwindcss";
 
 @theme {
-  --color-void: #09090b;
-  --color-surface: #111114;
-  --color-raised: #19191e;
-  --color-line: #2c2b31;
-  --color-muted: #a29eab;
-  --color-ink: #eeedf1;
-  --color-gold: #982797;
-  --color-primary: #982797;
-  --color-primary-hover: #900090;
+  --color-void: #050505;
+  --color-surface: #0e0e0e;
+  --color-raised: #181818;
+  --color-line: #2d2d2d;
+  --color-muted: #a3a3a3;
+  --color-ink: #f5f5f5;
+  --color-accent: #a78bfa;
+  --color-primary: #f5f5f5;
+  --color-primary-hover: #d4d4d4;
   --font-sans: "DM Sans", "Segoe UI", sans-serif;
-  --font-serif:
-    "Helvetica", "Arial", Georgia, serif;
+  --font-serif: "Helvetica", "Arial", Georgia, serif;
 }
 :root {
   font-family: var(--font-sans);
@@ -56,11 +55,11 @@ button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 select:focus-visible {
-  outline: 2px solid var(--color-gold);
+  outline: 2px solid var(--color-accent);
 }
 ::selection {
-  background: #7c2834;
-  color: #fff;
+  background: #a78bfa;
+  color: #050505;
 }
 html {
   scroll-behavior: smooth;
@@ -77,22 +76,7 @@ html {
   text-transform: uppercase;
 }
 .product-stage {
-  isolation: isolate;
-  background:
-    radial-gradient(
-      ellipse at 50% 50%,
-      var(--item-glow, #4c364633),
-      transparent 68%
-    ),
-    linear-gradient(145deg, #1b191e, #111114 80%);
-}
-.product-stage::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  inset: 14%;
-  border: 1px solid #d6b6790d;
-  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 45%, #1e1e1e, #101010 75%);
 }
 .product-stage img {
   transition: transform 0.4s ease;
@@ -102,19 +86,11 @@ html {
   transform: translateY(-5px) rotate(-2deg) scale(1.035);
 }
 .hero-stage {
-  background:
-    radial-gradient(ellipse at 77% 45%, #67243119, transparent 48%),
-    radial-gradient(ellipse at 46% 100%, #d6b67906, transparent 52%), #0c0b0e;
+  background: var(--color-void);
 }
-.hero-stage::before {
-  pointer-events: none;
-  content: "";
-  position: absolute;
-  inset: 0;
-  opacity: 0.14;
-  background-image: radial-gradient(#d6b679 0.6px, transparent 0.6px);
-  background-size: 35px 35px;
-  mask-image: linear-gradient(90deg, transparent, black);
+.hero-stage .animated-potion {
+  max-width: 500px;
+  margin-inline: auto;
 }
 dialog {
   border: 1px solid var(--color-line);
@@ -141,10 +117,10 @@ dialog::backdrop {
   transition: border-color 0.2s;
 }
 .field::placeholder {
-  color: #777180;
+  color: #828282;
 }
 .field:focus {
-  border-color: var(--color-gold);
+  border-color: var(--color-accent);
 }
 input[type="search"]::-webkit-search-cancel-button {
   display: none;

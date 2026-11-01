@@ -21,12 +21,12 @@ export default function CartItem({
         />
       </Link>
       <div className="min-w-0">
-        <p className="mb-1 text-[10px] font-medium uppercase tracking-[0.15em] text-gold">
+        <p className="mb-1 text-[10px] font-medium uppercase tracking-[0.15em] text-ink">
           {product.category}
         </p>
         <Link
           to={`/products/${product_id}`}
-          className="break-words font-serif text-lg leading-6 text-ink transition hover:text-gold"
+          className="break-words font-serif text-lg leading-6 text-ink transition hover:text-accent"
         >
           {product.name}
         </Link>
@@ -53,7 +53,7 @@ export default function CartItem({
           type="button"
           onClick={onRemove}
           disabled={disabled}
-          className="inline-flex min-h-10 items-center gap-1.5 text-xs text-muted transition hover:text-red-300 disabled:opacity-40"
+          className="inline-flex min-h-10 items-center gap-1.5 text-xs text-muted transition hover:text-accent disabled:opacity-40"
         >
           <Icon name="trash" className="size-3.5" />
           Remove

@@ -26,7 +26,7 @@ export function Modal({ title, children, onClose }) {
         <button
           type="button"
           aria-label="Close dialog"
-          className="absolute right-4 top-4 z-10 flex min-h-11 min-w-11 items-center justify-center rounded-full border border-line bg-void/90 text-muted hover:text-gold"
+          className="absolute right-4 top-4 z-10 flex min-h-11 min-w-11 items-center justify-center rounded-full border border-line bg-void/90 text-muted hover:text-accent"
           onClick={onClose}
         >
           <Icon name="close" />

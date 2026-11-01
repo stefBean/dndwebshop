@@ -60,7 +60,7 @@ export default function CartPage() {
   if (order)
     return (
       <section className="mx-auto max-w-3xl px-4 py-12 sm:px-8 sm:py-20">
-        <div className="mb-8 flex size-16 items-center justify-center rounded-full border border-gold/30 bg-gold/5 text-gold">
+        <div className="mb-8 flex size-16 items-center justify-center rounded-full border border-line bg-raised text-ink">
           <Icon name="check" className="size-8" />
         </div>
         <PageHeader
@@ -137,7 +137,7 @@ export default function CartPage() {
             <h2 className="text-xs font-semibold uppercase tracking-[0.15em] text-muted">
               Equipment
             </h2>
-            <span className="text-xs text-gold">
+            <span className="text-xs text-ink">
               {cartCount} {cartCount === 1 ? "item" : "items"}
             </span>
           </div>
@@ -173,7 +173,7 @@ export default function CartPage() {
         </div>
         <aside className="rounded-xl border border-line bg-surface p-5 sm:p-7">
           <div className="mb-6 flex items-center gap-3">
-            <Icon name="dice" className="size-5 text-gold" />
+            <Icon name="dice" className="size-5 text-ink" />
             <h2 className="font-serif text-2xl text-ink">Quest summary</h2>
           </div>
           <dl className="space-y-4 text-sm">
@@ -183,7 +183,7 @@ export default function CartPage() {
             </div>
             <div className="flex justify-between gap-4">
               <dt className="text-muted">Order type</dt>
-              <dd className="text-gold">Simulation</dd>
+              <dd className="text-ink">Simulation</dd>
             </div>
           </dl>
           <OrderTotal cents={totalCents} />
@@ -228,7 +228,7 @@ export default function CartPage() {
             </LinkButton>
           )}
           <div className="mt-5 flex items-center justify-center gap-2 text-[11px] text-muted">
-            <Icon name="shield" className="size-3.5 text-gold/70" />
+            <Icon name="shield" className="size-3.5 text-muted" />
             Your session stays private
           </div>
         </aside>

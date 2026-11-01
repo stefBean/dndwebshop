@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useShop } from "../state/shop-context.js";
 import { api } from "../lib/api.js";
+import { hashPassword } from '../lib/hashing-pw.js';
+
 import {
   BackLink,
   Button,
@@ -34,12 +36,13 @@ export default function AuthPage({ mode = "login" }) {
     setSubmitting(true);
     setError("");
     try {
+      const passwordHash = await hashPassword(password);
       const result = await api(`/api/auth/${register ? "register" : "login"}`, {
         method: "POST",
         body: {
           ...(register ? { name: name.trim() } : {}),
           email: email.trim(),
-          password,
+          password: passwordHash,
         },
       });
       setUser(result.user);
@@ -63,7 +66,7 @@ export default function AuthPage({ mode = "login" }) {
       <BackLink />
       <div className="grid overflow-hidden rounded-xl border border-line bg-surface lg:grid-cols-2">
         <div className="min-w-0 px-5 py-9 sm:px-12 sm:py-12">
-          <div className="mb-7 flex size-12 items-center justify-center rounded-lg border border-gold/20 bg-gold/5 text-gold">
+          <div className="mb-7 flex size-12 items-center justify-center rounded-lg border border-line bg-raised text-ink">
             <Icon name="user" className="size-5" />
           </div>
           <PageHeader
@@ -149,7 +152,7 @@ export default function AuthPage({ mode = "login" }) {
                     onClick={() => setShowPassword(!showPassword)}
                     aria-controls="account-password"
                     aria-pressed={showPassword}
-                    className="mt-2 inline-flex min-h-9 items-center gap-2 text-xs text-muted transition hover:text-gold"
+                    className="mt-2 inline-flex min-h-9 items-center gap-2 text-xs text-muted transition hover:text-accent"
                   >
                     <Icon name="eye" className="size-4" />
                     {showPassword ? "Hide password" : "Show password"}
@@ -174,14 +177,14 @@ export default function AuthPage({ mode = "login" }) {
                 <Link
                   to={register ? "/login" : "/register"}
                   state={{ from: redirect }}
-                  className="font-semibold text-gold underline decoration-gold/30 underline-offset-4 hover:decoration-gold"
+                  className="font-semibold text-ink underline decoration-accent/50 underline-offset-4 hover:decoration-accent/50"
                 >
                   {register ? "Sign in" : "Create an account"}
                 </Link>
               </p>
               {!register && (
                 <div className="mt-8 rounded-lg border border-line bg-void p-4">
-                  <p className="flex items-center gap-2 text-xs font-semibold text-gold">
+                  <p className="flex items-center gap-2 text-xs font-semibold text-ink">
                     <Icon name="dice" className="size-4" />
                     Choose a test adventurer
                   </p>
@@ -221,14 +224,14 @@ export default function AuthPage({ mode = "login" }) {
             </>
           )}
           <p className="mt-7 flex items-center justify-center gap-2 text-center text-[11px] leading-5 text-muted">
-            <Icon name="shield" className="size-3.5 shrink-0 text-gold/70" />A
+            <Icon name="shield" className="size-3.5 shrink-0 text-muted" />A
             secure session for the adventures ahead.
           </p>
         </div>
         <div className="relative hidden flex-col justify-between overflow-hidden border-l border-line bg-void lg:flex">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,#2a1218,transparent_70%)]" />
+          <div className="pointer-events-none absolute inset-0 bg-surface" />
           <div className="relative z-10 px-10 pt-12">
-            <span className="inline-flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-gold">
+            <span className="inline-flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-ink">
               <Icon name="dice" className="size-4" />
               YOUR NEXT CHAPTER AWAITS
             </span>
@@ -248,8 +251,8 @@ export default function AuthPage({ mode = "login" }) {
             className="relative my-auto w-full object-contain"
           />
           <p className="relative border-t border-line px-10 py-6 text-[10px] tracking-[0.2em] text-muted">
-            DICE & LORE <span className="px-2 text-gold">✦</span> EQUIP YOUR
-            LEGEND
+            DUNGEONS & DRAGONS SHOP <span className="px-2 text-ink">✦</span>{" "}
+            EQUIP YOUR LEGEND
           </p>
         </div>
       </div>

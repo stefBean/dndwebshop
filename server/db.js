@@ -1,15 +1,22 @@
 import Database from 'better-sqlite3';
-import { catalog } from './catalog.js';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { importProducts } from './products.js';
 import { hashPasswordSync } from './security.js';
 
-const originalFixtures = [
-  ['Coffee Mug', 'Ceramic mug, 300 ml', 1290],
-  ['Notebook', 'A5, dotted pages', 890],
-  ['Backpack', '20 L, water resistant', 4990],
-  ['Desk Lamp', 'LED, dimmable', 2490],
-  ['Water Bottle', 'Steel, 750 ml', 1990],
-];
+const serverDirectory = path.dirname(fileURLToPath(import.meta.url));
+const starterProductsFile = path.join(serverDirectory, 'data/products.json');
+const starterMigration = 'initial-products-v1';
+export const DEFAULT_DB_PATH = path.join(serverDirectory, 'shop.db');
 
+export function resolveDatabasePath(filename = process.env.DB_PATH || DEFAULT_DB_PATH) {
+  return filename === ':memory:' ? filename : path.resolve(serverDirectory, filename);
+}
+
+export function initializeDatabase(db, {
+  demoAccounts = process.env.NODE_ENV !== 'production',
+  seedProducts = true,
 export function initializeDatabase(db, {
   demoAccounts =
       process.env.NODE_ENV !== 'production' ||
@@ -57,6 +64,10 @@ export function initializeDatabase(db, {
     );
     CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at);
     CREATE INDEX IF NOT EXISTS orders_user ON orders(user_id);
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      id TEXT PRIMARY KEY,
+      applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
   const columns = new Set(db.pragma('table_info(products)').map((column) => column.name));
   for (const [name, definition] of [
@@ -68,19 +79,17 @@ export function initializeDatabase(db, {
     if (!columns.has(name)) db.exec(`ALTER TABLE products ADD COLUMN ${name} ${definition}`);
   }
 
-  const products = db.prepare('SELECT id, name, description, price_cents FROM products ORDER BY id').all();
-  const replaceOriginal = products.length === originalFixtures.length && products.every((product, index) => {
-    const [name, description, price] = originalFixtures[index];
-    return product.id === index + 1 && product.name === name && product.description === description && product.price_cents === price;
-  }) && db.prepare('SELECT COUNT(*) AS count FROM orders').get().count === 0;
-  if (products.length === 0 || replaceOriginal) {
-    const save = db.prepare(`INSERT INTO products (id, name, description, price_cents, category, image, tag, stock)
-      VALUES (@id, @name, @description, @price_cents, @category, @image, @tag, @stock)
-      ON CONFLICT(id) DO UPDATE SET name=excluded.name, description=excluded.description,
-        price_cents=excluded.price_cents, category=excluded.category, image=excluded.image,
-        tag=excluded.tag, stock=excluded.stock`);
-    db.transaction(() => catalog.forEach((product) => save.run(product)))();
-  }
+  // Bootstrap an empty database once. Existing catalogue rows are authoritative;
+  // an intentionally emptied catalogue must stay empty after future restarts.
+  db.transaction(() => {
+    if (db.prepare('SELECT 1 FROM schema_migrations WHERE id = ?').get(starterMigration)) return;
+    const empty = db.prepare('SELECT COUNT(*) AS count FROM products').get().count === 0;
+    if (seedProducts && empty) {
+      const starterProducts = JSON.parse(readFileSync(starterProductsFile, 'utf8'));
+      importProducts(db, starterProducts, { overwrite: false });
+    }
+    db.prepare('INSERT INTO schema_migrations (id) VALUES (?)').run(starterMigration);
+  }).immediate();
 
   if (demoAccounts) {
     const insert = db.prepare('INSERT OR IGNORE INTO users (name, email, password_hash, is_demo) VALUES (?, ?, ?, 1)');
@@ -93,6 +102,9 @@ export function initializeDatabase(db, {
   db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(Date.now());
   return db;
 }
+
+
+
 
 export function openDatabase(filename = process.env.DB_PATH || 'shop.db', options) {
   return initializeDatabase(new Database(filename), options);

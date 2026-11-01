@@ -19,7 +19,7 @@ const features = [
 function FeatureItem({ icon, title, text }) {
   return (
     <div className="flex items-center gap-3 py-2 sm:justify-center">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-line bg-raised text-gold/80">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-line bg-raised text-muted">
         <Icon name={icon} size={20} />
       </div>
       <div>

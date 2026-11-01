@@ -5,7 +5,7 @@ export function QuantityInput({ value, onChange, max = 99 }) {
       <button
         type="button"
         aria-label="Decrease quantity"
-        className="min-h-11 px-3 text-muted hover:text-gold disabled:opacity-25"
+        className="min-h-11 px-3 text-muted hover:text-accent disabled:opacity-25"
         disabled={value <= 1}
         onClick={() => onChange(value - 1)}
       >
@@ -28,7 +28,7 @@ export function QuantityInput({ value, onChange, max = 99 }) {
       <button
         type="button"
         aria-label="Increase quantity"
-        className="min-h-11 px-3 text-muted hover:text-gold disabled:opacity-25"
+        className="min-h-11 px-3 text-muted hover:text-accent disabled:opacity-25"
         disabled={value >= max}
         onClick={() => onChange(value + 1)}
       >
