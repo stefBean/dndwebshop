@@ -5,10 +5,17 @@ services:
       NODE_ENV: production
       INTERNAL_HTTP_TEST: "true"
       ENABLE_DEMO_ACCOUNTS: "true"
+      # CWE-779 challenge log location and optional reset protection.
+      CHALLENGE_LOG_PATH: /tmp/dice-lore-challenge/app.log
+      CHALLENGE_ADMIN_TOKEN: ${CHALLENGE_ADMIN_TOKEN:-}
     ports:
       - "${SHOP_BIND_IP:-127.0.0.1}:8080:3001"
     volumes:
       - shop-data:/data
+    # The challenge log lives on a separate, size-limited tmpfs so a log flood
+    # cannot exhaust the container's writable layer or the persistent volume.
+    tmpfs:
+      - /tmp/dice-lore-challenge:size=32m,mode=1777
     restart: unless-stopped
 
 volumes:

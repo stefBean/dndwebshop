@@ -1,6 +1,6 @@
 # Dungeons & Dragons Shop
 
-A React and Tailwind fantasy webshop with reusable product cards, search, product details, a persistent cart, customer accounts, and simulated orders. The Express API stores products, password hashes, sessions, and orders in SQLite. Security challenges are intentionally outside this basic shop.
+A React and Tailwind fantasy webshop with reusable product cards, search, product details, a persistent cart, customer accounts, and simulated orders. The Express API stores products, password hashes, sessions, and orders in SQLite. The CWE-779 logging challenge is isolated behind an environment flag; see [Security challenge](#security-challenge-cwe-779-logging-of-excessive-data).
 
 ## Frontend
 
@@ -8,7 +8,7 @@ The storefront uses a simple black-and-white interface with purple accents and f
 
 The homepage's reusable `AnimatedPotion` component renders moving purple liquid with CSS animations. Its pause/play control stops or resumes the animation; the system's reduced-motion preference displays a still version automatically. No animation library or external asset requests are required.
 
-Search matches product names, descriptions, and categories as plain text. Category filters, price/name sorting, quick-view dialogs, product detail routes, quantity editing, empty/error states, registration, login/logout, and private order history are included. Challenge routes and intentionally vulnerable behaviors are not implemented.
+Search matches product names, descriptions, and categories as plain text. Category filters, price/name sorting, quick-view dialogs, product detail routes, quantity editing, empty/error states, registration, login/logout, and private order history are included. The only intentionally vulnerable behavior is the opt-in CWE-779 challenge described below.
 
 ## Local development
 
@@ -82,6 +82,65 @@ The cart persists across navigation and browser reloads in `localStorage` under 
 
 Names, prices, account details, passwords, and authentication tokens are never saved in the cart. Product information comes from the API and authentication remains a server-side session with an HttpOnly cookie. Checkout requires sign-in and is a simulation: it never charges money or initiates shipping. The backend validates quantities and stock, calculates authoritative totals, saves order-line snapshots, and reduces stock atomically. Order history belongs to the signed-in account.
 
+## Security challenge: CWE-779 logging of excessive data
+
+The OWASP A09:2025 challenge is implemented in `server/challenge-log.js` and is
+isolated from the normal shop API. It is controlled by `CHALLENGE_LOG_FLOOD`:
+
+| Value | Behavior |
+| --- | --- |
+| `vulnerable` (default outside production) | Logs every header and the complete request body, unredacted and unlimited |
+| `secure` | Logs short structured metadata only, rejects bodies over 10 KB, rate limits, rotates |
+| `off` (default in production) | Challenge routes are not mounted at all |
+
+Endpoints:
+
+| Method | Path | Behavior |
+| --- | --- | --- |
+| POST | `/api/log.flood` | Accepts a JSON body and writes a challenge log entry |
+| GET | `/api/challenges/log-flood/status` | Current log size, limit, threshold and rotation count |
+| POST | `/api/challenges/log-flood/reset` | Truncates the challenge log only |
+
+The log defaults to `/tmp/dice-lore-challenge/app.log` and can be changed with
+`CHALLENGE_LOG_PATH`. `docker-compose.yml` mounts that directory as a 32 MiB
+tmpfs, so a flood cannot fill the container or the persistent database volume.
+Set `CHALLENGE_ADMIN_TOKEN` to require an `X-Challenge-Token` header on reset.
+
+Because the container runs with `NODE_ENV=production`, the challenge is `off`
+there by default. Enable it explicitly:
+
+```sh
+CHALLENGE_LOG_FLOOD=vulnerable docker compose up -d
+```
+
+Reproduce the challenge in vulnerable mode:
+
+```sh
+# Baseline size
+curl -s localhost:3001/api/challenges/log-flood/status
+
+# 250 requests with ~50 KB bodies
+for i in $(seq 1 250); do
+  curl -s -o /dev/null -X POST localhost:3001/api/log.flood \
+    -H 'Content-Type: application/json' \
+    --data "{\"text\":\"$(head -c 50000 /dev/zero | tr '\0' 'A')\"}"
+done
+
+# Size should now exceed the 10 MB threshold
+curl -s localhost:3001/api/challenges/log-flood/status
+```
+
+Reset only the challenge log (database, sessions and orders are untouched):
+
+```sh
+docker compose exec shop npm run reset:challenge
+# or, from server/: npm run reset:challenge
+```
+
+With `CHALLENGE_LOG_FLOOD=secure`, the same loop is rejected with `413` for
+oversized bodies and `429` after 30 requests per minute, and the log contains
+only method, path, status, duration, byte count and a hashed client address.
+
 ## Validation
 
 ```sh
@@ -90,9 +149,9 @@ npm run lint
 npm test
 ```
 
-From the repository root, `npm test` runs 10 client cart-storage tests followed by 20 backend integration tests. Client checks cover persistence, reloads, malformed data, integer validation, deduplication, removal of injected account and price fields, and storage failures.
+From the repository root, `npm test` runs 10 client cart-storage tests followed by 22 backend integration tests. Client checks cover persistence, reloads, malformed data, integer validation, deduplication, removal of injected account and price fields, and storage failures.
 
-Backend integration tests run against isolated temporary databases and cover product import validation and rollback, database-backed API responses, persistence across restarts, one-time seeding, stable database paths, literal SQL search, catalogue data, login/logout/session expiry, registration, rate limiting, request validation, stock and authoritative prices, persisted orders, account isolation, production demo-account exclusion, and non-destructive initialization. Tests listen on temporary loopback ports; sandboxed execution may require the environment's supported local-network permission flow.
+Backend integration tests run against isolated temporary databases and cover product import validation and rollback, database-backed API responses, persistence across restarts, one-time seeding, stable database paths, literal SQL search, catalogue data, login/logout/session expiry, registration, rate limiting, request validation, stock and authoritative prices, persisted orders, account isolation, production demo-account exclusion, non-destructive initialization, and the CWE-779 challenge (unlimited logging and reset). Tests listen on temporary loopback ports; sandboxed execution may require the environment's supported local-network permission flow.
 
 ## API
 
@@ -106,6 +165,9 @@ Backend integration tests run against isolated temporary databases and cover pro
 | POST | `/api/auth/logout` | Invalidate session, return 204 |
 | GET | `/api/orders` | Signed-in customer's order history |
 | POST | `/api/orders` | `{ items: [{ product_id, quantity }] }`; create simulated order |
+| POST | `/api/log.flood` | CWE-779 challenge logging endpoint (when enabled) |
+| GET | `/api/challenges/log-flood/status` | Challenge log size and limits (when enabled) |
+| POST | `/api/challenges/log-flood/reset` | Truncate the challenge log (when enabled) |
 
 JSON mutation requests must use `Content-Type: application/json`, except the bodyless logout request. Errors return `{ error }` with the appropriate HTTP status. Product and order prices use integer euro cents.
 

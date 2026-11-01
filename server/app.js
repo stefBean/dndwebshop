@@ -3,6 +3,7 @@ import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { hashPassword, hashPasswordSync, verifyPassword, tokenHash } from './security.js';
 import { getProduct, getProducts } from './products.js';
+import { createChallengeRouter, resolveChallengeMode } from './challenge-log.js';
 
 const cookieName = 'dice_lore_session';
 const sessionLifetime = 24 * 60 * 60 * 1000;
@@ -15,7 +16,7 @@ function cookieToken(req) {
   return /^[a-f0-9]{64}$/.test(token || '') ? token : null;
 }
 
-export function createApp(db, { production = process.env.NODE_ENV === 'production' } = {}) {
+export function createApp(db, { production = process.env.NODE_ENV === 'production', challengeMode = resolveChallengeMode({ production }), challengeOptions = {} } = {}) {
   const app = express();
   app.disable('x-powered-by');
 
@@ -59,12 +60,21 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
           return res.status(403).json({ error: 'Invalid request origin.' });
         }
       }
-      if (req.method === 'POST' && req.path !== '/auth/logout' && !req.is('application/json')) {
+      // The challenge reset endpoint takes no body, so it is exempt from the
+      // JSON content-type requirement. Everything else must send JSON.
+      const bodyOptional = req.path === '/auth/logout' || req.path === '/challenges/log-flood/reset';
+      if (req.method === 'POST' && !bodyOptional && !req.is('application/json')) {
         return res.status(415).json({ error: 'Send this request as application/json.' });
       }
     }
     next();
   });
+  // The CWE-779 challenge keeps its own body limit and is mounted before the
+  // shared JSON parser so it cannot weaken the hardened shop API. It is not
+  // mounted at all when the mode is "off".
+  if (challengeMode !== 'off') {
+    app.use(createChallengeRouter({ mode: challengeMode, ...challengeOptions }));
+  }
   app.use(express.json({ limit: '16kb' }));
   app.use('/api', (req, res, next) => {
     const token = cookieToken(req);
