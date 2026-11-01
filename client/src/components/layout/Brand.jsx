@@ -4,7 +4,7 @@ export default function Brand({ className = "", ...props }) {
   return (
     <Link
       to="/"
-      aria-label="Dice and Lore home"
+      aria-label="D&D"
       className={`group inline-flex shrink-0 items-center gap-2 text-ink sm:gap-2.5 ${className}`}
       {...props}
     >

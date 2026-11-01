@@ -3,7 +3,7 @@ import { promisify } from 'node:util';
 
 const derive = promisify(scrypt);
 const options = { N: 32768, r: 8, p: 3, maxmem: 64 * 1024 * 1024 };
-
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
 export function hashPasswordSync(password) {
   const salt = randomBytes(16).toString('hex');
   return `scrypt:${salt}:${scryptSync(password, salt, 64, options).toString('hex')}`;
