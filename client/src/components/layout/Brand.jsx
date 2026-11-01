@@ -6,6 +6,8 @@ export default function Brand({ className = "", ...props }) {
       to="/"
       aria-label="Dungeons & Dragons Shop home"
       className={`group inline-flex shrink-0 items-center gap-2 text-white sm:gap-3 ${className}`}
+      aria-label="D&D"
+      className={`group inline-flex shrink-0 items-center gap-2 text-ink sm:gap-2.5 ${className}`}
       {...props}
     >
       <img
