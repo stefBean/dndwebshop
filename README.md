@@ -1,6 +1,6 @@
 # Dungeons & Dragons Shop
 
-A React and Tailwind fantasy webshop with reusable product cards, search, product details, a persistent cart, customer accounts, and simulated orders. The Express API stores products, password hashes, sessions, and orders in SQLite. The CWE-779 logging challenge is isolated behind an environment flag; see [Security challenge](#security-challenge-cwe-779-logging-of-excessive-data).
+A React and Tailwind fantasy webshop with reusable product cards, search, product details, a persistent cart, customer accounts, and simulated orders. The Express API stores products, password hashes, sessions, and orders in SQLite. The CWE-779 logging challenge is isolated from the shop API; see [Security challenge](#security-challenge-cwe-779-logging-of-excessive-data).
 
 ## Frontend
 
@@ -85,20 +85,16 @@ Names, prices, account details, passwords, and authentication tokens are never s
 ## Security challenge: CWE-779 logging of excessive data
 
 The OWASP A09:2025 challenge is implemented in `server/challenge-log.js` and is
-isolated from the normal shop API. It is controlled by `CHALLENGE_LOG_FLOOD`:
-
-| Value | Behavior |
-| --- | --- |
-| `vulnerable` (default outside production) | Logs every header and the complete request body, unredacted and unlimited |
-| `secure` | Logs short structured metadata only, rejects bodies over 10 KB, rate limits, rotates |
-| `off` (default in production) | Challenge routes are not mounted at all |
+isolated from the normal shop API. The challenge endpoint is intentionally
+vulnerable: it writes every header and the complete request body to a dedicated
+log file, unredacted and without any size or count limit.
 
 Endpoints:
 
 | Method | Path | Behavior |
 | --- | --- | --- |
 | POST | `/api/log.flood` | Accepts a JSON body and writes a challenge log entry |
-| GET | `/api/challenges/log-flood/status` | Current log size, limit, threshold and rotation count |
+| GET | `/api/challenges/log-flood/status` | Current log size and the 10 MB threshold |
 | POST | `/api/challenges/log-flood/reset` | Truncates the challenge log only |
 
 The log defaults to `/tmp/dice-lore-challenge/app.log` and can be changed with
@@ -106,14 +102,7 @@ The log defaults to `/tmp/dice-lore-challenge/app.log` and can be changed with
 tmpfs, so a flood cannot fill the container or the persistent database volume.
 Set `CHALLENGE_ADMIN_TOKEN` to require an `X-Challenge-Token` header on reset.
 
-Because the container runs with `NODE_ENV=production`, the challenge is `off`
-there by default. Enable it explicitly:
-
-```sh
-CHALLENGE_LOG_FLOOD=vulnerable docker compose up -d
-```
-
-Reproduce the challenge in vulnerable mode:
+Reproduce the challenge:
 
 ```sh
 # Baseline size
@@ -136,10 +125,6 @@ Reset only the challenge log (database, sessions and orders are untouched):
 docker compose exec shop npm run reset:challenge
 # or, from server/: npm run reset:challenge
 ```
-
-With `CHALLENGE_LOG_FLOOD=secure`, the same loop is rejected with `413` for
-oversized bodies and `429` after 30 requests per minute, and the log contains
-only method, path, status, duration, byte count and a hashed client address.
 
 ## Validation
 
@@ -165,9 +150,9 @@ Backend integration tests run against isolated temporary databases and cover pro
 | POST | `/api/auth/logout` | Invalidate session, return 204 |
 | GET | `/api/orders` | Signed-in customer's order history |
 | POST | `/api/orders` | `{ items: [{ product_id, quantity }] }`; create simulated order |
-| POST | `/api/log.flood` | CWE-779 challenge logging endpoint (when enabled) |
-| GET | `/api/challenges/log-flood/status` | Challenge log size and limits (when enabled) |
-| POST | `/api/challenges/log-flood/reset` | Truncate the challenge log (when enabled) |
+| POST | `/api/log.flood` | CWE-779 challenge logging endpoint |
+| GET | `/api/challenges/log-flood/status` | Challenge log size and threshold |
+| POST | `/api/challenges/log-flood/reset` | Truncate the challenge log |
 
 JSON mutation requests must use `Content-Type: application/json`, except the bodyless logout request. Errors return `{ error }` with the appropriate HTTP status. Product and order prices use integer euro cents.
 

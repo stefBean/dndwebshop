@@ -6,14 +6,13 @@ import path from 'node:path';
 import test from 'node:test';
 import Database from 'better-sqlite3';
 import { createApp } from '../app.js';
-import { resolveChallengeMode } from '../challenge-log.js';
 import { openDatabase, initializeDatabase } from '../db.js';
 
 const password = 'RollForAdventure!24';
 
-async function fixture(t, { filename = ':memory:', demoAccounts = true, production = false, challengeMode = 'off', challengeOptions } = {}) {
+async function fixture(t, { filename = ':memory:', demoAccounts = true, production = false, challengeOptions } = {}) {
   const db = openDatabase(filename, { demoAccounts });
-  const server = createApp(db, { production, challengeMode, challengeOptions }).listen(0, '127.0.0.1');
+  const server = createApp(db, { production, challengeOptions }).listen(0, '127.0.0.1');
   await once(server, 'listening');
   const base = `http://127.0.0.1:${server.address().port}`;
   t.after(async () => {
@@ -160,23 +159,11 @@ test('production excludes demo credentials even when a development database is r
   db.close();
 });
 
-test('CWE-779 challenge is disabled by default and in production', async (t) => {
-  const { request } = await fixture(t);
-  assert.equal((await request('/api/log.flood', { method: 'POST', body: { text: 'x' } })).status, 404);
-  assert.equal((await request('/api/challenges/log-flood/status')).status, 404);
-  const production = await fixture(t, { production: true });
-  assert.equal((await production.request('/api/challenges/log-flood/status')).status, 404);
-  assert.equal(resolveChallengeMode({ env: {}, production: true }), 'off');
-  assert.equal(resolveChallengeMode({ env: {}, production: false }), 'vulnerable');
-  assert.equal(resolveChallengeMode({ env: { CHALLENGE_LOG_FLOOD: 'secure' }, production: true }), 'secure');
-  assert.equal(resolveChallengeMode({ env: { CHALLENGE_LOG_FLOOD: 'off' }, production: false }), 'off');
-});
-
-test('vulnerable challenge logs full headers and body without limits', async (t) => {
+test('CWE-779 challenge logs full headers and body without limits', async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'dice-lore-log-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const logPath = path.join(directory, 'app.log');
-  const { request } = await fixture(t, { challengeMode: 'vulnerable', challengeOptions: { logPath } });
+  const { request } = await fixture(t, { challengeOptions: { logPath } });
   const payload = 'A'.repeat(50 * 1024);
   const response = await request('/api/log.flood', {
     method: 'POST',
@@ -189,51 +176,15 @@ test('vulnerable challenge logs full headers and body without limits', async (t)
   assert.ok(contents.includes('secret-token'));
   assert.ok(contents.includes('leaky'));
   const status = await (await request('/api/challenges/log-flood/status')).json();
-  assert.equal(status.mode, 'vulnerable');
-  assert.equal(status.enforced, false);
   assert.ok(status.sizeBytes > 50 * 1024);
-});
-
-test('secure challenge rejects oversized bodies, redacts data, rate limits and rotates', async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), 'dice-lore-log-'));
-  t.after(() => rm(directory, { recursive: true, force: true }));
-  const logPath = path.join(directory, 'app.log');
-  const { request } = await fixture(t, {
-    challengeMode: 'secure',
-    challengeOptions: { logPath, maxBytes: 2048, thresholdBytes: 1024 },
-  });
-  const oversized = await request('/api/log.flood', {
-    method: 'POST',
-    body: { text: 'B'.repeat(50 * 1024) },
-    headers: { Authorization: 'Bearer secret-token' },
-  });
-  assert.equal(oversized.status, 413);
-  const small = await request('/api/log.flood', { method: 'POST', body: { text: 'hello' }, headers: { Cookie: 'session=leaky' } });
-  assert.equal(small.status, 200);
-  const contents = await readFile(logPath, 'utf8');
-  assert.ok(!contents.includes('secret-token'));
-  assert.ok(!contents.includes('leaky'));
-  assert.ok(!contents.includes('hello'));
-  assert.ok(contents.includes('ipHash'));
-  for (let i = 0; i < 40; i += 1) await request('/api/log.flood', { method: 'POST', body: { text: 'x' } });
-  const limited = await request('/api/log.flood', { method: 'POST', body: { text: 'x' } });
-  assert.equal(limited.status, 429);
-  assert.ok(Number(limited.headers.get('retry-after')) > 0);
-  const status = await (await request('/api/challenges/log-flood/status')).json();
-  assert.equal(status.mode, 'secure');
-  assert.equal(status.enforced, true);
-  assert.ok(status.sizeBytes <= 2048);
-  assert.ok(status.rotatedFiles >= 1);
+  assert.equal(status.achieved, false);
 });
 
 test('challenge reset clears only the log and can require an admin token', async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'dice-lore-log-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const logPath = path.join(directory, 'app.log');
-  const { request } = await fixture(t, {
-    challengeMode: 'vulnerable',
-    challengeOptions: { logPath, adminToken: 'admin-secret' },
-  });
+  const { request } = await fixture(t, { challengeOptions: { logPath, adminToken: 'admin-secret' } });
   await request('/api/log.flood', { method: 'POST', body: { text: 'x' } });
   assert.equal((await request('/api/challenges/log-flood/reset', { method: 'POST' })).status, 403);
   const reset = await request('/api/challenges/log-flood/reset', { method: 'POST', headers: { 'x-challenge-token': 'admin-secret' } });

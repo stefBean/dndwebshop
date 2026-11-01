@@ -3,7 +3,7 @@ import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { hashPassword, hashPasswordSync, verifyPassword, tokenHash } from './security.js';
 import { getProduct, getProducts } from './products.js';
-import { createChallengeRouter, resolveChallengeMode } from './challenge-log.js';
+import { createChallengeRouter } from './challenge-log.js';
 
 const cookieName = 'dice_lore_session';
 const sessionLifetime = 24 * 60 * 60 * 1000;
@@ -16,7 +16,7 @@ function cookieToken(req) {
   return /^[a-f0-9]{64}$/.test(token || '') ? token : null;
 }
 
-export function createApp(db, { production = process.env.NODE_ENV === 'production', challengeMode = resolveChallengeMode({ production }), challengeOptions = {} } = {}) {
+export function createApp(db, { production = process.env.NODE_ENV === 'production', challengeOptions = {} } = {}) {
   const app = express();
   app.disable('x-powered-by');
 
@@ -70,11 +70,8 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     next();
   });
   // The CWE-779 challenge keeps its own body limit and is mounted before the
-  // shared JSON parser so it cannot weaken the hardened shop API. It is not
-  // mounted at all when the mode is "off".
-  if (challengeMode !== 'off') {
-    app.use(createChallengeRouter({ mode: challengeMode, ...challengeOptions }));
-  }
+  // shared JSON parser so it cannot weaken the hardened shop API.
+  app.use(createChallengeRouter(challengeOptions));
   app.use(express.json({ limit: '16kb' }));
   app.use('/api', (req, res, next) => {
     const token = cookieToken(req);
