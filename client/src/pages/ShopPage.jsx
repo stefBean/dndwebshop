@@ -12,6 +12,7 @@ import ShopBenefits from "../components/catalog/ShopBenefits.jsx";
 import CategoryFilter from "../components/catalog/CategoryFilter.jsx";
 import CollectionToolbar from "../components/catalog/CollectionToolbar.jsx";
 import ProductGrid from "../components/catalog/ProductGrid.jsx";
+import SearchChallengeFrame from "../components/catalog/SearchChallengeFrame.jsx";
 import { useShop } from "../state/shop-context.js";
 export default function ShopPage({ featured = false }) {
   const { products, loading, error, reloadProducts } = useShop();
@@ -111,6 +112,8 @@ export default function ShopPage({ featured = false }) {
                 products={filtered}
                 onQuickView={setSelectedProduct}
               />
+            ) : search.trim() ? (
+              <SearchChallengeFrame search={search} onReset={() => setSearch("")} />
             ) : (
               <EmptyState
                 title="No treasures found"

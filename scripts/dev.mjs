@@ -29,7 +29,7 @@ function stop(code) {
 }
 
 function start(name, args, cwd) {
-  // Launch Node directly so cleanup includes both services without npm/shell grandchildren.
+  // Launch Node directly so cleanup includes all services without npm/shell grandchildren.
   const child = spawn(process.execPath, args, { cwd, stdio: 'inherit' });
   children.add(child);
   child.on('error', (error) => {
@@ -39,7 +39,7 @@ function start(name, args, cwd) {
   child.on('close', (code, signal) => {
     children.delete(child);
     if (!stopping) {
-      console.error(`[dev] ${name} stopped${signal ? ` (${signal})` : ''}; stopping both services.`);
+      console.error(`[dev] ${name} stopped${signal ? ` (${signal})` : ''}; stopping all services.`);
       stop(code || 1);
     }
     if (children.size === 0) {
@@ -52,6 +52,8 @@ function start(name, args, cwd) {
 process.on('SIGINT', () => stop(0));
 process.on('SIGTERM', () => stop(0));
 
-console.log(`[dev] Starting the API on port ${process.env.PORT || 3001} and Vite. Press Ctrl+C to stop both.`);
+console.log(`[dev] Starting the API on port ${process.env.PORT || 3001} Vite and the isolated XSS preview. Press Ctrl+C to stop all services.`);
 start('API', [path.join(root, 'server/index.js')], path.join(root, 'server'));
 start('Frontend', [vite, '--strictPort', ...process.argv.slice(2)], path.join(root, 'client'));
+
+start('XSS preview', [path.join(root, 'challenge-xss/server.mjs')], root);

@@ -8,7 +8,9 @@ The storefront uses a simple black-and-white interface with purple accents and f
 
 The homepage's reusable `AnimatedPotion` component renders moving purple liquid with CSS animations. Its pause/play control stops or resumes the animation; the system's reduced-motion preference displays a still version automatically. No animation library or external asset requests are required.
 
+
 Search matches product names, descriptions, and categories as plain text. Category filters, price/name sorting, quick-view dialogs, product detail routes, quantity editing, empty/error states, registration, login/logout, and private order history are included. Intentionally vulnerable behavior is controlled by database-backed challenge flags, disabled by default (see below).
+=======
 
 ## Local development
 
@@ -191,11 +193,3 @@ JSON mutation requests must use `Content-Type: application/json`, except the bod
 ## Branding assets
 
 The monochrome Dungeons & Dragons dragon-ampersand symbol is provided by [Simple Icons](https://github.com/simple-icons/simple-icons/blob/develop/icons/dungeonsanddragons.svg) under CC0 and is stored locally in `client/public/images/dnd-symbol.svg`. The shop wordmark is a local typographic composition inspired by the Dungeons & Dragons identity, with “Shop” added. Product illustrations remain in color.
-
-Usernames contain 3–32 letters, numbers, dots, underscores or hyphens and are
-case-insensitive. Demo usernames are `aria` and `finn`. Existing databases are
-migrated automatically: email-based logins become usernames using the part before
-`@`, with unsupported characters replaced by hyphens. Short values receive a
-`user-` prefix; collisions receive a numeric suffix. Account IDs, passwords,
-sessions and orders are preserved. The `dice-and-lore.cart.v1` storage key remains
-unchanged for saved-cart compatibility.
