@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useShop } from "../state/shop-context.js";
 import { api } from "../lib/api.js";
-import { hashPassword } from '../lib/hashing-pw.js';
+
 
 import {
   BackLink,
@@ -36,13 +36,13 @@ export default function AuthPage({ mode = "login" }) {
     setSubmitting(true);
     setError("");
     try {
-      const passwordHash = await hashPassword(password);
+      
       const result = await api(`/api/auth/${register ? "register" : "login"}`, {
         method: "POST",
         body: {
           ...(register ? { name: name.trim() } : {}),
           email: email.trim(),
-          password: passwordHash,
+          password: password,
         },
       });
       setUser(result.user);

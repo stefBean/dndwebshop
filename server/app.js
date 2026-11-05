@@ -136,28 +136,30 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     res.json({ user: publicUser(user) });
   });*/
 
-  app.post('/api/auth/login', authLimit, (req, res) => {   // For client side hashing
+  app.post('/api/auth/login', authLimit, (req, res) => {
     const { email, password } = req.body || {};
   
     if (
       typeof email !== 'string' ||
       email.length > 254 ||
       typeof password !== 'string' ||
-      !/^[a-f0-9]{32}$/i.test(password)
+      password.length > 128
     ) {
-      return res.status(400).json({ error: 'Enter a valid email address and password hash.' });
+      return res.status(400).json({ error: 'Enter a valid email address and password.' });
     }
   
     const user = db
       .prepare('SELECT * FROM users WHERE email = ?')
       .get(email.trim().toLowerCase());
   
+    const passwordHash = hashPasswordMd5(password);
     const matches =
       user &&
       !(production && user.is_demo) &&
-      user.password_hash === password.toLowerCase();
+      user.password_hash === passwordHash;
   
     if (!matches) {
+      
       return res.status(401).json({ error: 'That email and password do not match.' });
     }
   
@@ -169,9 +171,8 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     const { name, email, password } = req.body || {};
     if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 80) return res.status(400).json({ error: 'Enter a name between 2 and 80 characters.' });
     if (typeof email !== 'string' || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return res.status(400).json({ error: 'Enter a valid email address.' });
-    if (typeof password !== 'string' || !/^[a-f0-9]{32}$/i.test(password)) {
-      return res.status(400).json({ error: 'Invalid hash.' });
-    }  
+    if (typeof password !== 'string' ||password.length < 12 ||password.length > 128 ||!/[a-z]/.test(password) ||!/[A-Z]/.test(password) ||!/\d/.test(password)) {return res.status(400).json({error: 'Use 12–128 characters with uppercase, lowercase, and a number.',});
+    }
     const normalized = email.trim().toLowerCase();
     const passwordHash = await hashPassword(password);
     const result = db.prepare('INSERT OR IGNORE INTO users (name, email, password_hash) VALUES (?, ?, ?)').run(name.trim(), normalized, passwordHash);

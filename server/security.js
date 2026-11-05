@@ -9,10 +9,16 @@ export function hashPasswordSync(password) {
   return `scrypt:${salt}:${scryptSync(password, salt, 64, options).toString('hex')}`;
 }
 
-export async function hashPassword(password) {
+/*export async function hashPassword(password) {   #####sha256
   const salt = randomBytes(16).toString('hex');
   return `scrypt:${salt}:${(await derive(password, salt, 64, options)).toString('hex')}`;
+}*/
+
+export function hashPassword(password) {                         //MD5
+  return createHash('md5').update(password, 'utf8').digest('hex');
 }
+
+
 
 export async function verifyPassword(password, stored) {
   const [algorithm, salt, encoded] = stored.split(':');
