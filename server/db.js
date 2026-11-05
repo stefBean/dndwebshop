@@ -92,13 +92,23 @@ export function initializeDatabase(db, {
   }).immediate();
 
   if (demoAccounts) {
-    const insert = db.prepare('INSERT OR IGNORE INTO users (name, email, password_hash, is_demo) VALUES (?, ?, ?, 1)');
-    for (const [name, email] of [['Aria', 'aria@diceandlore.test'], ['Finn', 'finn@diceandlore.test']]) {
+    const insert = db.prepare(
+      'INSERT OR IGNORE INTO users (name, email, password_hash, is_demo) VALUES (?, ?, ?, 1)'
+    );
+  
+    const users = [
+      ['Aria', 'aria@diceandlore.test', hashPasswordSync('RollForAdventure!24')],
+      ['Finn', 'finn@diceandlore.test', hashPasswordSync('RollForAdventure!24')],
+      ['Admin', 'admin@diceandlore.com', 'ab99bfafeb719a0cfdd0e6699ced2d14'],
+    ];
+  
+    for (const [name, email, passwordHash] of users) {
       if (!db.prepare('SELECT id FROM users WHERE email = ?').get(email)) {
-        insert.run(name, email, hashPasswordSync('RollForAdventure!24'));
+        insert.run(name, email, passwordHash);
       }
     }
   }
+  
   db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(Date.now());
   return db;
 }

@@ -14,7 +14,7 @@ export function hashPasswordSync(password) {
   return `scrypt:${salt}:${(await derive(password, salt, 64, options)).toString('hex')}`;
 }*/
 
-export function hashPassword(password) {                         //MD5
+export async function hashPassword(password) {                         //MD5
   return createHash('md5').update(password, 'utf8').digest('hex');
 }
 

@@ -136,7 +136,7 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     res.json({ user: publicUser(user) });
   });*/
 
-  app.post('/api/auth/login', authLimit, (req, res) => {
+  app.post('/api/auth/login', authLimit, async (req, res) => {
     const { email, password } = req.body || {};
   
     if (
@@ -152,7 +152,7 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
       .prepare('SELECT * FROM users WHERE email = ?')
       .get(email.trim().toLowerCase());
   
-    const passwordHash = hashPasswordMd5(password);
+    const  passwordHash = await hashPassword(password);
     const matches =
       user &&
       !(production && user.is_demo) &&
@@ -160,7 +160,7 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
   
     if (!matches) {
       
-      return res.status(401).json({ error: 'That email and password do not match.' });
+      return res.status(401).json({ error: 'That email and password do not match.',email, passwordHash});
     }
   
     startSession(req, res, user);
