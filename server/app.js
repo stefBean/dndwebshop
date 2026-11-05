@@ -16,7 +16,11 @@ function cookieToken(req) {
   return /^[a-f0-9]{64}$/.test(token || '') ? token : null;
 }
 
-export function createApp(db, { production = process.env.NODE_ENV === 'production', challengeOptions = {} } = {}) {
+export function createApp(db, { production = process.env.NODE_ENV === 'production', challengeOptions = {}, xssPreviewOrigin = process.env.XSS_PREVIEW_ORIGIN || 'http://127.0.0.1:8081' } = {}) {
+  const previewUrl = new URL(xssPreviewOrigin);
+  if (!['http:', 'https:'].includes(previewUrl.protocol) || previewUrl.origin !== xssPreviewOrigin) {
+    throw new Error('XSS_PREVIEW_ORIGIN must be an HTTP(S) origin without a path.');
+  }
   const app = express();
   app.disable('x-powered-by');
 
@@ -37,7 +41,7 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     res.set({
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'strict-origin-when-cross-origin',
-      'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+      'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-src " + previewUrl.origin + "; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
     });
     if (req.path.startsWith('/api/')) res.set('Cache-Control', 'no-store');
     next();
@@ -114,6 +118,11 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
       .run(tokenHash(token), user.id, Date.now() + sessionLifetime);
     res.cookie(cookieName, token, { ...cookieOptions, maxAge: sessionLifetime });
   }
+
+  // Public address only: never a client-supplied URL or challenge secret.
+  app.get('/api/challenges/xss/config', (req, res) => {
+    res.json({ previewOrigin: previewUrl.origin });
+  });
 
   app.get('/api/products', (req, res) => {
     const search = typeof req.query.search === 'string' ? req.query.search.slice(0, 200) : '';

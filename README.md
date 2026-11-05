@@ -8,7 +8,7 @@ The storefront uses a simple black-and-white interface with purple accents and f
 
 The homepage's reusable `AnimatedPotion` component renders moving purple liquid with CSS animations. Its pause/play control stops or resumes the animation; the system's reduced-motion preference displays a still version automatically. No animation library or external asset requests are required.
 
-Search matches product names, descriptions, and categories as plain text. Category filters, price/name sorting, quick-view dialogs, product detail routes, quantity editing, empty/error states, registration, login/logout, and private order history are included. The only intentionally vulnerable behavior is the opt-in CWE-779 challenge described below.
+Search matches product names, descriptions, and categories as plain text. Category filters, price/name sorting, quick-view dialogs, product detail routes, quantity editing, empty/error states, registration, login/logout, and private order history are included. The internal SSD environment includes the CWE-779 logging challenge and an always-available, isolated DOM-XSS search challenge (CWE-80 / OWASP A05:2025). See [DOM-XSS setup, payload, isolation, manual checks and reset](challenge-xss/README.md).
 
 ## Local development
 
@@ -161,3 +161,15 @@ JSON mutation requests must use `Content-Type: application/json`, except the bod
 The monochrome Dungeons & Dragons dragon-ampersand symbol is provided by [Simple Icons](https://github.com/simple-icons/simple-icons/blob/develop/icons/dungeonsanddragons.svg) under CC0 and is stored locally in `client/public/images/dnd-symbol.svg`. The shop wordmark is a local typographic composition inspired by the Dungeons & Dragons identity, with “Shop” added. Product illustrations remain in color.
 
 The legacy demo-account email addresses and `dice-and-lore.cart.v1` storage key are retained for compatibility with existing accounts and saved carts.
+
+## DOM-XSS search preview (CWE-80 / OWASP A05:2025)
+
+Run `docker compose up --build -d` to start the shop and the separate XSS preview
+service together. Open the shop at http://localhost:8080/products; the preview is
+served from http://127.0.0.1:8081, deliberately using a different cookie host.
+No activation flag, database migration or XSS progress store is needed.
+The logging challenge and its reset command remain unchanged.
+
+See [the XSS challenge guide](challenge-xss/README.md) for the reproducible
+JavaScript test input, manual isolation checks, resource limits, network
+limitations, remote-host configuration, reset and the textContent correction.
