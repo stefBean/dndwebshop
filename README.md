@@ -119,11 +119,21 @@ search continues to render plain text.
 
 ### Retrieving the weak admin password hash
 
-Enable the exercise, then anonymously retrieve its target hash:
+The developer enables the exercise from `server/`:
 
 ```sh
-# From server/:
 npm run challenge:set -- weak-password true
+```
+
+Participants open the shop’s **Sign in** page. The **Password challenge** panel
+shows the admin username, hash algorithm and password hash. **Open hash response**
+opens the JSON directly in a browser tab. Participants can also inspect the
+`weak-password/hash` request in Developer Tools → Network when loading the page.
+No terminal or server access is needed.
+
+For developer verification, the same response is available via:
+
+```sh
 curl http://localhost:3001/api/challenges/weak-password/hash
 ```
 

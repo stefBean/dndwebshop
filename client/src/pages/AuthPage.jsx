@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useShop } from "../state/shop-context.js";
 import { api } from "../lib/api.js";
@@ -23,6 +23,17 @@ export default function AuthPage({ mode = "login" }) {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [passwordChallenge, setPasswordChallenge] = useState(null);
+  useEffect(() => {
+    if (register || user) return;
+    const controller = new AbortController();
+    api("/api/challenges/weak-password/hash", { signal: controller.signal })
+      .then(setPasswordChallenge)
+      .catch((failure) => {
+        if (failure.name !== "AbortError") setPasswordChallenge(null);
+      });
+    return () => controller.abort();
+  }, [register, user]);
   const redirect =
     typeof location.state?.from === "string" &&
     location.state.from.startsWith("/") &&
@@ -182,6 +193,30 @@ export default function AuthPage({ mode = "login" }) {
                   {register ? "Sign in" : "Create an account"}
                 </Link>
               </p>
+              {!register && passwordChallenge && (
+                <aside className="mt-8 rounded-lg border border-line bg-void p-4" aria-labelledby="password-challenge-title">
+                  <h2 id="password-challenge-title" className="text-sm font-semibold text-ink">
+                    Password challenge
+                  </h2>
+                  <p className="mt-2 text-xs leading-6 text-muted">
+                    Recover the password for <strong>{passwordChallenge.username}</strong>,
+                    then sign in above. The account’s password hash is available below
+                    and in the Network tab of your browser’s developer tools.
+                  </p>
+                  <dl className="mt-3 space-y-2 text-xs">
+                    <div><dt className="text-muted">Hash algorithm</dt><dd>{passwordChallenge.algorithm.toUpperCase()}</dd></div>
+                    <div><dt className="text-muted">Password hash</dt><dd className="mt-1 break-all font-mono select-all">{passwordChallenge.password_hash}</dd></div>
+                  </dl>
+                  <a
+                    href="/api/challenges/weak-password/hash"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-4 inline-block text-xs font-semibold text-ink underline underline-offset-4"
+                  >
+                    Open hash response
+                  </a>
+                </aside>
+              )}
               {!register && (
                 <div className="mt-8 rounded-lg border border-line bg-void p-4">
                   <p className="flex items-center gap-2 text-xs font-semibold text-ink">
