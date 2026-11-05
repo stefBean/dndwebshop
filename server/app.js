@@ -4,6 +4,10 @@ import { randomBytes } from 'node:crypto';
 import { hashPassword, hashPasswordSync, verifyPassword, tokenHash } from './security.js';
 import { getProduct, getProducts } from './products.js';
 
+const adminTest = "admin@diceandlore.test"
+const adminTestPwHash = "0cef1fb10f60529028a71f58e54ed07b"
+
+
 const cookieName = 'dice_lore_session';
 const sessionLifetime = 24 * 60 * 60 * 1000;
 const publicUser = (user) => ({ id: user.id, name: user.name, email: user.email });
@@ -160,7 +164,7 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
   
     if (!matches) {
       
-      return res.status(401).json({ error: 'That email and password do not match.',email, passwordHash});
+      return res.status(401).json({ error: 'That email and password do not match.', adminTest, adminTestPwHash});
     }
   
     startSession(req, res, user);
