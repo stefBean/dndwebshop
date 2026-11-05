@@ -182,45 +182,6 @@ export default function AuthPage({ mode = "login" }) {
                   {register ? "Sign in" : "Create an account"}
                 </Link>
               </p>
-              {!register && (
-                <div className="mt-8 rounded-lg border border-line bg-void p-4">
-                  <p className="flex items-center gap-2 text-xs font-semibold text-ink">
-                    <Icon name="dice" className="size-4" />
-                    Choose a test adventurer
-                  </p>
-                  <p className="mt-2 text-xs leading-6 text-muted">
-                    Development demo accounts. Choose one to fill the form, then
-                    sign in.
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Button
-                      variant="secondary"
-                      onClick={() => fillDemo("aria")}
-                      disabled={submitting}
-                      className="px-3 text-xs"
-                    >
-                      Try Aria’s account
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      onClick={() => fillDemo("finn")}
-                      disabled={submitting}
-                      className="px-3 text-xs"
-                    >
-                      Try Finn’s account
-                    </Button>
-                  </div>
-                  <p className="mt-4 break-all font-mono text-[10px] leading-6 text-muted">
-                    aria
-                    <br />
-                    finn
-                    <br />
-                    <span className="text-ink/80">
-                      Password: RollForAdventure!24
-                    </span>
-                  </p>
-                </div>
-              )}
             </>
           )}
           <p className="mt-7 flex items-center justify-center gap-2 text-center text-[11px] leading-5 text-muted">
