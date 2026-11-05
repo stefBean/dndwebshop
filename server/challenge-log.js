@@ -20,8 +20,12 @@ function positiveNumber(value, fallback) {
 }
 
 async function fileSize(file) {
-  const info = await stat(file, { throwIfNoEntry: false });
-  return info?.size ?? 0;
+  try {
+    return (await stat(file)).size;
+  } catch (error) {
+    if (error.code === 'ENOENT') return 0;
+    throw error;
+  }
 }
 
 export function createChallengeLog({
