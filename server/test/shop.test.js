@@ -10,8 +10,9 @@ import { openDatabase, initializeDatabase } from '../db.js';
 
 const password = 'RollForAdventure!24';
 
-async function fixture(t, { filename = ':memory:', demoAccounts = true, production = false, challengeOptions } = {}) {
+async function fixture(t, { filename = ':memory:', demoAccounts = true, production = false, challengeOptions, activeChallenges = [] } = {}) {
   const db = openDatabase(filename, { demoAccounts });
+  for (const id of activeChallenges) db.prepare('UPDATE challenges SET active = 1 WHERE id = ?').run(id);
   const server = createApp(db, { production, challengeOptions }).listen(0, '127.0.0.1');
   await once(server, 'listening');
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -88,6 +89,7 @@ test('registration validates passwords and duplicate email, then signs in a new 
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(body.email);
   assert.notEqual(user.password_hash, body.password);
   assert.equal(user.is_demo, 0);
+  assert.equal((await request('/api/auth/login', { method: 'POST', body: { email: body.email, password: body.password } })).status, 200);
 });
 
 test('login attempts are rate limited with a retry time', async (t) => {
@@ -159,11 +161,11 @@ test('production excludes demo credentials even when a development database is r
   db.close();
 });
 
-test('CWE-779 challenge logs full headers and body without limits', async (t) => {
+test('active CWE-779 challenge logs full headers and large bodies', async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'dice-lore-log-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const logPath = path.join(directory, 'app.log');
-  const { request } = await fixture(t, { challengeOptions: { logPath } });
+  const { request } = await fixture(t, { challengeOptions: { logPath }, activeChallenges: ['log-flood'] });
   const payload = 'A'.repeat(50 * 1024);
   const response = await request('/api/log.flood', {
     method: 'POST',
@@ -207,4 +209,56 @@ test('database initialization is repeatable and preserves custom catalogue data 
   assert.equal(legacy.prepare('SELECT COUNT(*) AS count FROM products').get().count, 1);
   assert.equal(legacy.prepare('SELECT name FROM products').get().name, 'My Existing Product');
   legacy.close();
+});
+
+test('challenge flags default to safe and initialization preserves an explicit selection', async (t) => {
+  const { db } = await fixture(t);
+  assert.deepEqual(db.prepare('SELECT active FROM challenges').all(), [{ active: 0 }, { active: 0 }]);
+  db.prepare("UPDATE challenges SET active = 1 WHERE id = 'log-flood'").run();
+  initializeDatabase(db);
+  assert.equal(db.prepare("SELECT active FROM challenges WHERE id = 'log-flood'").get().active, 1);
+});
+
+test('safe logging rejects large bodies, redacts secrets, rate limits and switches modes live', async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'dice-safe-log-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const logPath = path.join(directory, 'app.log');
+  const { db, request } = await fixture(t, { challengeOptions: { logPath } });
+  const send = (text) => request('/api/log.flood', {
+    method: 'POST', body: { text }, headers: { Authorization: 'Bearer secret-token' },
+  });
+  assert.equal((await send('A'.repeat(50 * 1024))).status, 413);
+  assert.equal((await send('private-body')).status, 200);
+  const contents = await readFile(logPath, 'utf8');
+  assert.ok(!contents.includes('private-body'));
+  assert.ok(!contents.includes('secret-token'));
+  for (let i = 0; i < 28; i += 1) assert.equal((await send('x')).status, 200);
+  assert.equal((await send('x')).status, 429);
+  db.prepare("UPDATE challenges SET active = 1 WHERE id = 'log-flood'").run();
+  assert.equal((await send('A'.repeat(50 * 1024))).status, 200);
+  db.prepare("UPDATE challenges SET active = 0 WHERE id = 'log-flood'").run();
+  assert.equal((await (await request('/api/challenges/log-flood/status')).json()).isActive, false);
+});
+
+test('weak hashing is limited to the demo target and disabling restores scrypt verification', async (t) => {
+  const { db, request } = await fixture(t, { activeChallenges: ['weak-password'] });
+  const user = db.prepare("SELECT * FROM users WHERE email = 'aria@diceandlore.test'").get();
+  assert.match(user.password_hash, /^scrypt:/);
+  assert.match(user.challenge_password_hash, /^[a-f0-9]{32}$/);
+  const body = { email: user.email, password };
+  assert.equal((await request('/api/auth/login', { method: 'POST', body })).status, 200);
+  // Make the challenge credential differ, so this proves which branch is used.
+  db.prepare('UPDATE users SET challenge_password_hash = ? WHERE id = ?').run('0'.repeat(32), user.id);
+  assert.equal((await request('/api/auth/login', { method: 'POST', body })).status, 401);
+  db.prepare("UPDATE challenges SET active = 0 WHERE id = 'weak-password'").run();
+  assert.equal((await request('/api/auth/login', { method: 'POST', body })).status, 200);
+  assert.equal(db.prepare('SELECT password_hash FROM users WHERE id = ?').get(user.id).password_hash, user.password_hash);
+});
+
+test('production ignores active challenge flags', async (t) => {
+  const { request } = await fixture(t, { production: true, activeChallenges: ['weak-password', 'log-flood'] });
+  const status = await (await request('/api/challenges/log-flood/status')).json();
+  assert.equal(status.isActive, false);
+  assert.equal((await request('/api/log.flood', { method: 'POST', body: { text: 'A'.repeat(50 * 1024) } })).status, 413);
+  assert.equal((await request('/api/auth/login', { method: 'POST', body: { email: 'aria@diceandlore.test', password } })).status, 401);
 });

@@ -3,6 +3,7 @@ import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { hashPassword, hashPasswordSync, verifyPassword, tokenHash } from './security.js';
 import { getProduct, getProducts } from './products.js';
+import { createChallengeState } from './challenges.js';
 import { createChallengeRouter } from './challenge-log.js';
 
 const cookieName = 'dice_lore_session';
@@ -18,6 +19,7 @@ function cookieToken(req) {
 
 export function createApp(db, { production = process.env.NODE_ENV === 'production', challengeOptions = {} } = {}) {
   const app = express();
+  const challenges = createChallengeState(db, { production });
   app.disable('x-powered-by');
 
   const internalHttpTest = process.env.INTERNAL_HTTP_TEST === 'true';
@@ -71,7 +73,7 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
   });
   // The CWE-779 challenge keeps its own body limit and is mounted before the
   // shared JSON parser so it cannot weaken the hardened shop API.
-  app.use(createChallengeRouter(challengeOptions));
+  app.use(createChallengeRouter({ ...challengeOptions, isActive: () => challenges.isActive('log-flood') }));
   app.use(express.json({ limit: '16kb' }));
   app.use('/api', (req, res, next) => {
     const token = cookieToken(req);
@@ -127,47 +129,19 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
   });
 
   app.get('/api/auth/me', (req, res) => res.json({ user: req.user || null }));
-  /*app.post('/api/auth/login', authLimit, async (req, res) => {
+  app.post('/api/auth/login', authLimit, async (req, res) => {
     const { email, password } = req.body || {};
     if (typeof email !== 'string' || email.length > 254 || typeof password !== 'string' || password.length > 128) {
       return res.status(400).json({ error: 'Enter a valid email address and password.' });
     }
     const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.trim().toLowerCase());
-    const verified = await verifyPassword(password, user?.password_hash || dummyHash);
+    const weakChallenge = challenges.isActive('weak-password') && user?.is_demo === 1 && !!user.challenge_password_hash;
+    const verified = weakChallenge
+      ? challenges.verifyDemoPassword(password, user.challenge_password_hash)
+      : await verifyPassword(password, user?.password_hash || dummyHash);
     if (!user || !verified || (!allowDemoAccounts && user.is_demo)) {
-      return res.status(401).json({
-        error: 'That email and password do not match.'
-      });
-    }
-    startSession(req, res, user);
-    res.json({ user: publicUser(user) });
-  });*/
-
-  app.post('/api/auth/login', authLimit, (req, res) => {   // For client side hashing
-    const { email, password } = req.body || {};
-  
-    if (
-      typeof email !== 'string' ||
-      email.length > 254 ||
-      typeof password !== 'string' ||
-      !/^[a-f0-9]{32}$/i.test(password)
-    ) {
-      return res.status(400).json({ error: 'Enter a valid email address and password hash.' });
-    }
-  
-    const user = db
-      .prepare('SELECT * FROM users WHERE email = ?')
-      .get(email.trim().toLowerCase());
-  
-    const matches =
-      user &&
-      !(production && user.is_demo) &&
-      user.password_hash === password.toLowerCase();
-  
-    if (!matches) {
       return res.status(401).json({ error: 'That email and password do not match.' });
     }
-  
     startSession(req, res, user);
     res.json({ user: publicUser(user) });
   });
@@ -176,8 +150,8 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     const { name, email, password } = req.body || {};
     if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 80) return res.status(400).json({ error: 'Enter a name between 2 and 80 characters.' });
     if (typeof email !== 'string' || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return res.status(400).json({ error: 'Enter a valid email address.' });
-    if (typeof password !== 'string' || !/^[a-f0-9]{32}$/i.test(password)) {
-      return res.status(400).json({ error: 'Invalid hash.' });
+    if (typeof password !== 'string' || password.length < 12 || password.length > 128 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+      return res.status(400).json({ error: 'Use 12–128 characters with uppercase, lowercase and a number.' });
     }  
     const normalized = email.trim().toLowerCase();
     const passwordHash = await hashPassword(password);

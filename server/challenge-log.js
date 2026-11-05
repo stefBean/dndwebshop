@@ -1,14 +1,13 @@
 import express from 'express';
-import { appendFile, mkdir, stat, truncate } from 'node:fs/promises';
+import { appendFile, mkdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 /**
  * CWE-779 / OWASP A09:2025 "Logging of Excessive Data" challenge.
  *
- * This module is intentionally vulnerable and isolated from the normal shop
- * logging: every request to the challenge endpoint is written to a dedicated
- * log file with all headers and the complete body, without truncation,
- * redaction, rate limiting or rotation.
+ * Active mode intentionally logs full headers and bodies in an isolated file.
+ * Inactive mode limits bodies and request frequency, records metadata only,
+ * and rotates the file. Both modes enforce a storage cap.
  */
 
 export const DEFAULT_LOG_PATH = '/tmp/dice-lore-challenge/app.log';
@@ -30,6 +29,7 @@ export function createChallengeLog({
   thresholdBytes = positiveNumber(process.env.CHALLENGE_LOG_THRESHOLD_BYTES, DEFAULT_THRESHOLD_BYTES),
   adminToken = process.env.CHALLENGE_ADMIN_TOKEN || '',
   now = () => Date.now(),
+  isActive = () => false,
 } = {}) {
   const directory = path.dirname(logPath);
   let queue = Promise.resolve();
@@ -45,6 +45,7 @@ export function createChallengeLog({
     const sizeBytes = await fileSize(logPath);
     return {
       logPath,
+      isActive: isActive(),
       sizeBytes,
       thresholdBytes,
       achieved: sizeBytes >= thresholdBytes,
@@ -52,28 +53,34 @@ export function createChallengeLog({
   }
 
   /**
-   * Intentionally unsafe: writes the complete request, including cookies,
-   * authorization headers and the full body, with no size or count limit.
+   * Active mode intentionally includes credentials and bodies for the exercise.
+   * Safe mode records bounded metadata without query strings or credentials.
    */
   function write(req) {
     return enqueue(async () => {
       await mkdir(directory, { recursive: true });
+      const active = isActive();
       const entry = {
         time: new Date(now()).toISOString(),
         method: req.method,
-        url: req.originalUrl,
+        url: active ? req.originalUrl : req.path.slice(0, 200),
         ip: req.ip,
-        headers: req.headers,
-        body: req.body,
+        ...(active ? { headers: req.headers, body: req.body } : {}),
       };
-      await appendFile(logPath, `${JSON.stringify(entry)}\n`);
+      const line = `${JSON.stringify(entry)}\n`;
+      const limit = active ? 32 * 1024 * 1024 : 64 * 1024;
+      if ((await fileSize(logPath)) + Buffer.byteLength(line) > limit) {
+        if (active) throw Object.assign(new Error('The challenge log is full. Reset it before continuing.'), { status: 507 });
+        await writeFile(logPath, '');
+      }
+      await appendFile(logPath, line);
     });
   }
 
   function reset() {
     return enqueue(async () => {
       await mkdir(directory, { recursive: true });
-      await truncate(logPath, 0);
+      await writeFile(logPath, '');
       return status();
     });
   }
@@ -97,8 +104,28 @@ function requireAdmin(log) {
 export function createChallengeRouter(options = {}) {
   const log = createChallengeLog(options);
   const router = express.Router();
+  const isActive = options.isActive || (() => false);
+  const safeParser = express.json({ limit: '10kb' });
+  const challengeParser = express.json({ limit: BODY_LIMIT });
+  const attempts = new Map();
+  const now = options.now || Date.now;
+  const parse = (req, res, next) => (isActive() ? challengeParser : safeParser)(req, res, next);
+  const rateLimit = (req, res, next) => {
+    if (isActive()) return next();
+    const time = now();
+    for (const [key, value] of attempts) if (value.until <= time) attempts.delete(key);
+    const entry = attempts.get(req.ip) || { count: 0, until: time + 60000 };
+    if (entry.count >= 30) {
+      res.set('Retry-After', String(Math.ceil((entry.until - time) / 1000)));
+      return res.status(429).json({ error: 'Too many log requests. Try again later.' });
+    }
+    if (attempts.size >= 10000) attempts.delete(attempts.keys().next().value);
+    attempts.set(req.ip, entry);
+    entry.count += 1;
+    next();
+  };
 
-  router.post('/api/log.flood', express.json({ limit: BODY_LIMIT }), async (req, res) => {
+  router.post('/api/log.flood', rateLimit, parse, async (req, res) => {
     await log.write(req);
     res.json({ logged: true, sizeBytes: (await log.status()).sizeBytes });
   });

@@ -1,4 +1,5 @@
 import Database from 'better-sqlite3';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -41,6 +42,11 @@ export function initializeDatabase(db, {
       is_demo INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+    CREATE TABLE IF NOT EXISTS challenges (
+      id TEXT PRIMARY KEY,
+      active INTEGER NOT NULL DEFAULT 0 CHECK(active IN (0, 1))
+    );
+    INSERT OR IGNORE INTO challenges (id) VALUES ('weak-password'), ('log-flood');
     CREATE TABLE IF NOT EXISTS sessions (
       token_hash TEXT PRIMARY KEY,
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -78,6 +84,11 @@ export function initializeDatabase(db, {
     if (!columns.has(name)) db.exec(`ALTER TABLE products ADD COLUMN ${name} ${definition}`);
   }
 
+  const userColumns = new Set(db.pragma('table_info(users)').map((column) => column.name));
+  if (!userColumns.has('challenge_password_hash')) {
+    db.exec('ALTER TABLE users ADD COLUMN challenge_password_hash TEXT');
+  }
+
   // Bootstrap an empty database once. Existing catalogue rows are authoritative;
   // an intentionally emptied catalogue must stay empty after future restarts.
   db.transaction(() => {
@@ -98,6 +109,11 @@ export function initializeDatabase(db, {
       }
     }
   }
+  if (demoAccounts) {
+    db.prepare(`UPDATE users SET challenge_password_hash = ?
+      WHERE email = 'aria@diceandlore.test' AND is_demo = 1 AND challenge_password_hash IS NULL`)
+      .run(createHash('md5').update('RollForAdventure!24').digest('hex'));
+  }
   db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(Date.now());
   return db;
 }
@@ -106,5 +122,5 @@ export function initializeDatabase(db, {
 
 
 export function openDatabase(filename = process.env.DB_PATH || 'shop.db', options) {
-  return initializeDatabase(new Database(filename), options);
+  return initializeDatabase(new Database(resolveDatabasePath(filename)), options);
 }
