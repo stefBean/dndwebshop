@@ -4,7 +4,7 @@ import { useShop } from "../../state/shop-context.js";
 import Header from "./Header.jsx";
 
 export default function PageLayout() {
-  const { toast } = useShop();
+  const { toast, resetVersion } = useShop();
   const { pathname } = useLocation();
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
@@ -19,7 +19,7 @@ export default function PageLayout() {
       </a>
       <Header />
       <div id="main-content" tabIndex={-1} className="flex-1 outline-none">
-        <Outlet />
+        <Outlet key={resetVersion} />
       </div>
       <p
         role="status"

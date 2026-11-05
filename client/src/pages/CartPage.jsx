@@ -16,6 +16,8 @@ import CartItem from "../components/CartItem.jsx";
 export default function CartPage() {
   const {
     cart,
+    resetVersion,
+    ensureCurrentCart,
     cartItems,
     cartCount,
     totalCents,
@@ -37,8 +39,10 @@ export default function CartPage() {
     setSubmitting(true);
     setError("");
     try {
+      if (!await ensureCurrentCart()) return;
       const result = await api("/api/orders", {
         method: "POST",
+        headers: { "X-Shop-Reset-Version": resetVersion },
         body: {
           items: cart.map(({ product_id, quantity }) => ({
             product_id,
@@ -51,7 +55,7 @@ export default function CartPage() {
       await reloadProducts();
     } catch (failure) {
       if (failure.status === 401) setUser(null);
-      if (failure.status === 409) await reloadProducts();
+      if (failure.status === 409) { await ensureCurrentCart(); await reloadProducts(); }
       setError(failure.message);
     } finally {
       setSubmitting(false);

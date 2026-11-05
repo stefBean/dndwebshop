@@ -43,3 +43,22 @@ export function writeCart(cart, storage) {
     return false;
   }
 }
+
+// Store generation and items atomically. Legacy arrays are accepted only before
+// the first shop reset; another browser cannot relabel an old cart as current.
+export function readCartForVersion(version, storage) {
+  try {
+    const target = storage === undefined ? globalThis.localStorage : storage;
+    const value = JSON.parse(target?.getItem(CART_STORAGE_KEY) ?? 'null');
+    if (Array.isArray(value)) return version === 'initial' ? sanitizeCart(value) : [];
+    return value?.resetVersion === version ? sanitizeCart(value.items) : [];
+  } catch { return []; }
+}
+export function writeCartForVersion(cart, version, storage) {
+  try {
+    const target = storage === undefined ? globalThis.localStorage : storage;
+    if (!target || !version) return false;
+    target.setItem(CART_STORAGE_KEY, JSON.stringify({ resetVersion: version, items: sanitizeCart(cart) }));
+    return true;
+  } catch { return false; }
+}

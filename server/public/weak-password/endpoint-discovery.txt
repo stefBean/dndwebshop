@@ -1,0 +1,6 @@
+status
+health
+products
+users
+orders
+info

@@ -54,11 +54,6 @@ export default function AuthPage({ mode = "login" }) {
       setSubmitting(false);
     }
   }
-  function fillDemo(account) {
-    setUsername(account);
-    setPassword("RollForAdventure!24");
-    setError("");
-  }
   return (
     <section className="mx-auto max-w-6xl px-4 py-10 sm:px-8 sm:py-16">
       <BackLink />

@@ -1,5 +1,4 @@
 import Database from 'better-sqlite3';
-import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -94,6 +93,12 @@ export function initializeDatabase(db, {
     );
     CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at);
     CREATE INDEX IF NOT EXISTS orders_user ON orders(user_id);
+    CREATE TABLE IF NOT EXISTS shop_state (
+      id INTEGER PRIMARY KEY CHECK(id = 1),
+      reset_version TEXT NOT NULL
+    );
+    INSERT OR IGNORE INTO shop_state VALUES (1, 'initial');
+    CREATE TABLE IF NOT EXISTS reset_products (id INTEGER PRIMARY KEY);
     CREATE TABLE IF NOT EXISTS schema_migrations (
       id TEXT PRIMARY KEY,
       applied_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -109,6 +114,29 @@ export function initializeDatabase(db, {
     if (!columns.has(name)) db.exec(`ALTER TABLE products ADD COLUMN ${name} ${definition}`);
   }
 
+  const challengeColumns = new Set(db.pragma('table_info(challenges)').map((column) => column.name));
+  for (const [name, definition] of [
+    ['target_user_id', 'INTEGER REFERENCES users(id)'],
+    ['solved_at', 'TEXT'],
+    ['revision', 'INTEGER NOT NULL DEFAULT 0'],
+  ]) {
+    if (!challengeColumns.has(name)) db.exec('ALTER TABLE challenges ADD COLUMN ' + name + ' ' + definition);
+  }
+
+  // Recognize an existing fixture only by its complete identity, never by ID
+  // alone. Once registered, later edits to this exercise product can be reset.
+  db.transaction(() => {
+    if (db.prepare("SELECT 1 FROM schema_migrations WHERE id = 'reset-scope-v1'").get()) return;
+    const fixtures = JSON.parse(readFileSync(starterProductsFile, 'utf8'));
+    for (const fixture of fixtures) {
+      const row = db.prepare('SELECT * FROM products WHERE id = ?').get(fixture.id);
+      if (row && ['name', 'description', 'category', 'image', 'tag'].every(key => row[key] === fixture[key])) {
+        db.prepare('INSERT OR IGNORE INTO reset_products VALUES (?)').run(row.id);
+      }
+    }
+    db.prepare("INSERT INTO schema_migrations (id) VALUES ('reset-scope-v1')").run();
+  }).immediate();
+
   migrateUsernames(db);
   const userColumns = new Set(db.pragma('table_info(users)').map((column) => column.name));
   if (!userColumns.has('challenge_password_hash')) {
@@ -123,6 +151,7 @@ export function initializeDatabase(db, {
     if (seedProducts && empty) {
       const starterProducts = JSON.parse(readFileSync(starterProductsFile, 'utf8'));
       importProducts(db, starterProducts, { overwrite: false });
+      for (const product of starterProducts) db.prepare('INSERT OR IGNORE INTO reset_products VALUES (?)').run(product.id);
     }
     db.prepare('INSERT INTO schema_migrations (id) VALUES (?)').run(starterMigration);
   }).immediate();
@@ -134,11 +163,6 @@ export function initializeDatabase(db, {
         insert.run(name, username, hashPasswordSync('RollForAdventure!24'));
       }
     }
-  }
-  if (demoAccounts) {
-    db.prepare(`UPDATE users SET challenge_password_hash = ?
-      WHERE username = 'aria' AND is_demo = 1 AND challenge_password_hash IS NULL`)
-      .run(createHash('md5').update('RollForAdventure!24').digest('hex'));
   }
   db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(Date.now());
   return db;

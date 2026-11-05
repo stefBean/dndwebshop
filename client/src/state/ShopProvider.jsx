@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ShopContext } from "./shop-context.js";
 import { api } from "../lib/api.js";
-import { readCart, writeCart } from "../lib/cart-storage.js";
+import { CART_STORAGE_KEY, readCartForVersion, writeCartForVersion } from "../lib/cart-storage.js";
 
 export default function ShopProvider({ children }) {
   const [products, setProducts] = useState([]);
@@ -9,7 +9,10 @@ export default function ShopProvider({ children }) {
   const [error, setError] = useState("");
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [cart, setCart] = useState(readCart);
+  const [cart, setCart] = useState([]);
+  const [resetVersion, setResetVersion] = useState(null);
+  const versionRef = useRef(null);
+  const resetRequest = useRef(null);
   const [toast, setToast] = useState("");
   const toastTimer = useRef();
   const notify = useCallback((message) => {
@@ -29,6 +32,48 @@ export default function ShopProvider({ children }) {
       setLoading(false);
     }
   }, []);
+  const checkResetVersion = useCallback(() => {
+    if (resetRequest.current) return resetRequest.current;
+    resetRequest.current = (async () => {
+      const data = await api('/api/shop/state');
+      if (typeof data.resetVersion !== 'string' || !data.resetVersion) throw new Error('Shop status unavailable.');
+      const previous = versionRef.current;
+      if (previous !== data.resetVersion) {
+        const items = previous === null ? readCartForVersion(data.resetVersion) : [];
+        versionRef.current = data.resetVersion;
+        writeCartForVersion(items, data.resetVersion);
+        setCart(items);
+        setResetVersion(data.resetVersion);
+        if (previous !== null) {
+          setUser(null);
+          await reloadProducts();
+          notify('Der Shop wurde zurückgesetzt. Dein Warenkorb ist jetzt leer. Bitte erneut anmelden.');
+        }
+      }
+      return previous === null || previous === data.resetVersion;
+    })().finally(() => { resetRequest.current = null; });
+    return resetRequest.current;
+  }, [notify, reloadProducts]);
+  const ensureCurrentCart = useCallback(async () => {
+    try { return await checkResetVersion(); }
+    catch {
+      notify('Shop-Status nicht erreichbar. Bitte erneut versuchen. Dein Warenkorb bleibt erhalten.');
+      return false;
+    }
+  }, [checkResetVersion, notify]);
+  useEffect(() => {
+    const refresh = () => { void ensureCurrentCart(); };
+    const storageChanged = (event) => { if (event.key === CART_STORAGE_KEY) refresh(); };
+    refresh();
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    window.addEventListener('storage', storageChanged);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+      window.removeEventListener('storage', storageChanged);
+    };
+  }, [ensureCurrentCart]);
   useEffect(() => {
     const controller = new AbortController();
     api("/api/products", { signal: controller.signal })
@@ -57,7 +102,8 @@ export default function ShopProvider({ children }) {
   }, [notify]);
   useEffect(() => {
     let timer;
-    if (!writeCart(cart)) {
+    if (!resetVersion || resetVersion !== versionRef.current) return;
+    if (!writeCartForVersion(cart, resetVersion)) {
       timer = setTimeout(
         () =>
           notify(
@@ -67,8 +113,9 @@ export default function ShopProvider({ children }) {
       );
     }
     return () => clearTimeout(timer);
-  }, [cart, notify]);
-  function addToCart(product, quantity = 1) {
+  }, [cart, resetVersion, notify]);
+  async function addToCart(product, quantity = 1) {
+    if (!await ensureCurrentCart()) return;
     if (!Number.isSafeInteger(quantity) || quantity < 1) return;
     if (product.stock <= 0)
       return notify("This treasure is currently out of stock.");
@@ -92,7 +139,8 @@ export default function ShopProvider({ children }) {
     });
     notify(`${product.name} added to your bag.`);
   }
-  function setQuantity(id, quantity) {
+  async function setQuantity(id, quantity) {
+    if (!await ensureCurrentCart()) return;
     const product = products.find((p) => p.id === id);
     if (
       !Number.isSafeInteger(quantity) ||
@@ -119,6 +167,8 @@ export default function ShopProvider({ children }) {
     user,
     authLoading,
     cart,
+    resetVersion,
+    ensureCurrentCart,
     cartItems,
     toast,
     cartCount: cart.reduce((sum, item) => sum + item.quantity, 0),
@@ -131,8 +181,9 @@ export default function ShopProvider({ children }) {
     setUser,
     notify,
     reloadProducts,
-    removeFromCart: (id) =>
-      setCart((items) => items.filter((item) => item.product_id !== id)),
+    removeFromCart: async (id) => {
+      if (await ensureCurrentCart()) setCart((items) => items.filter((item) => item.product_id !== id));
+    },
     clearCart: () => setCart([]),
   };
   return <ShopContext.Provider value={value}>{children}</ShopContext.Provider>;

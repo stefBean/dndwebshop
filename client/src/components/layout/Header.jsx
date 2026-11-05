@@ -8,6 +8,7 @@ const navigation = [
   { to: "/", label: "Home", end: true },
   { to: "/products", label: "The collection" },
   { to: "/about", label: "Our story" },
+  { to: "/challenges", label: "Aufgaben" },
 ];
 function Navigation({ mobile = false, onNavigate }) {
   return (

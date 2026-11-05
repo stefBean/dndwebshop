@@ -10,7 +10,6 @@ The homepage's reusable `AnimatedPotion` component renders moving purple liquid 
 
 
 Search matches product names, descriptions, and categories as plain text. Category filters, price/name sorting, quick-view dialogs, product detail routes, quantity editing, empty/error states, registration, login/logout, and private order history are included. Intentionally vulnerable behavior is controlled by database-backed challenge flags, disabled by default (see below).
-=======
 
 ## Local development
 
@@ -76,11 +75,13 @@ In development only, two fictitious customer accounts are available:
 
 Customers can also create their own accounts. Passwords require 12–128 characters with uppercase, lowercase, and a number. Passwords are salted and hashed with scrypt; raw passwords are never stored. Sessions use random opaque tokens in HttpOnly, SameSite=Lax cookies. Only token hashes are stored server-side. Sessions expire after 24 hours and are invalidated on logout. Login and registration share a limit of eight attempts per IP in two minutes.
 
-With `NODE_ENV=production`, demo accounts are not created and existing demo accounts cannot authenticate. Production session cookies require HTTPS. Run behind an HTTPS reverse proxy that preserves the request Host and Origin. The application rejects cross-origin mutation requests and provides no cross-origin API grant. Configure deployment ingress and TLS for the actual hostname before publishing a public instance.
+With `NODE_ENV=production`, ordinary demo accounts are excluded except for the existing
+internal HTTP/demo configuration used by Compose. The dedicated password-challenge
+target is managed separately by its explicit local activation command. Production session cookies require HTTPS. Run behind an HTTPS reverse proxy that preserves the request Host and Origin. The application rejects cross-origin mutation requests and provides no cross-origin API grant. Configure deployment ingress and TLS for the actual hostname before publishing a public instance.
 
 ## Cart and orders
 
-The cart persists across navigation and browser reloads in `localStorage` under the unchanged key `dice-and-lore.cart.v1`, so existing saved carts remain compatible. The JSON format is only an array of product references and quantities, for example `[{"product_id":1,"quantity":2}]`. IDs must be positive safe integers and quantities whole numbers from 1 to 99. Duplicate IDs are consolidated; malformed entries are ignored without losing valid items. `client/src/lib/cart-storage.js` owns parsing, sanitization, reading, and writing. If storage is blocked or full, the in-memory cart remains usable and the shop shows a notification.
+The cart persists across navigation and browser reloads in `localStorage` under the unchanged key `dice-and-lore.cart.v1`, so existing saved carts remain compatible. The stored JSON groups `resetVersion` with an `items` array containing only product references and quantities. Legacy arrays remain readable before the first full reset. Normal reloads and navigation preserve carts; a changed server reset version invalidates them. IDs must be positive safe integers and quantities whole numbers from 1 to 99. Duplicate IDs are consolidated; malformed entries are ignored without losing valid items. `client/src/lib/cart-storage.js` owns parsing, sanitization, reading, and writing. If storage is blocked or full, the in-memory cart remains usable and the shop shows a notification.
 
 Names, prices, account details, passwords, and authentication tokens are never saved in the cart. Product information comes from the API and authentication remains a server-side session with an HttpOnly cookie. Checkout requires sign-in and is a simulation: it never charges money or initiates shipping. The backend validates quantities and stock, calculates authoritative totals, saves order-line snapshots, and reduces stock atomically. Order history belongs to the signed-in account.
 
@@ -98,8 +99,7 @@ npm run challenge:set -- log-flood false
 npm run challenge:set -- weak-password false
 ```
 
-No restart is required. `NODE_ENV=production` always uses safe behavior,
-regardless of stored flags. Flags cannot be changed through public HTTP requests.
+No restart is required. Both `weak-password` and `log-flood` follow their explicit database flags even with NODE_ENV=production in this internal university exercise. There is no additional activation environment variable. Flags cannot be changed through public HTTP requests.
 Use the same `DB_PATH` as the running server.
 
 Inactive logging accepts at most 10 KB, writes metadata without headers or body,
@@ -108,13 +108,74 @@ accepts 1 MB bodies and retains full headers/body in the isolated challenge log,
 with a 32 MiB application cap. Disabling a challenge does not erase previously
 written sensitive challenge data; use the log reset command to clear it.
 
-The weak-password flag enables MD5 verification only for the seeded Aria demo
-account's separate `challenge_password_hash`. Its regular scrypt credential is
-preserved, so turning the flag off immediately restores safe verification.
-Finn and registered customers always use scrypt. Passwords are submitted to the
-server for verification; serve the shop over HTTPS outside local development.
-The XSS exercise described in the concept PDF is not implemented in this codebase;
-search continues to render plain text.
+The password challenge uses a separate fictitious target with bcrypt cost 4.
+Aria, Finn and registered customers retain their normal scrypt credentials.
+The target is created only by the local activation command; existing accounts
+are never adopted or overwritten. Disabling selects Argon2id and closes its backup.
+
+The XSS exercise is implemented in the isolated `challenge-xss` preview service;
+see [its operating instructions](challenge-xss/README.md).
+
+## Password challenge: CWE-916
+
+Open `/challenges` (linked in the main navigation and footer). The three expandable cards describe the existing XSS, offline password and log-flood exercises, including prerequisites and evidence. XSS requires manual browser reproduction; password and logging use their existing instance-wide status endpoints. All exercises take place in the existing shop. Start without a login
+at `/robots.txt`. The page provides an endpoint-discovery list, a fictional password
+wordlist and a local-only bcrypt verification script. It does not display the
+complete endpoint, target hash or matching password.
+
+Start the app first so its additive schema migration has run, then activate:
+
+~~~sh
+docker compose up --build -d
+docker compose exec shop npm run challenge:set -- weak-password true
+# Local development, after npm run dev:
+npm --prefix server run challenge:set -- weak-password true
+~~~
+
+Commands use the running server's `DB_PATH` and need no restart. No additional
+environment switch is required. Installation defaults to inactive.
+Both database-controlled challenges may be explicitly activated in the internal production-mode deployment. This intentionally vulnerable university exercise must remain
+behind the internal network boundary. Keep the loopback Docker binding or restrict
+a chosen internal bind address with VPN/firewall. Do not expose it on the Internet.
+
+`/api/challenges/weak-password/status` reports persisted completion after a successful
+weak-hash target login. Progress is shared by this instance. Additionally show the
+local offline-tool output as evidence of cracking.
+
+Reset just this exercise, restoring active mode:
+
+~~~sh
+docker compose exec shop npm run reset:password-challenge
+# Local:
+npm --prefix server run reset:password-challenge
+~~~
+
+This restores the target hashes, clears progress and invalidates target sessions.
+Other users, sessions, products, orders and challenges remain unchanged.
+It is not a full shop reset; there is no public password-reset API.
+
+Select the concrete safe variant:
+
+~~~sh
+docker compose exec shop npm run challenge:set -- weak-password false
+# Local:
+npm --prefix server run challenge:set -- weak-password false
+~~~
+
+The backup becomes unavailable and the target verifies only Argon2id (19 MiB,
+two iterations, parallelism one). Mode changes revoke target sessions and clear
+progress. Regular accounts stay on scrypt. An already known password can still
+authenticate against its secure hash; the improvement is increased offline effort,
+not immunity to a tiny known wordlist. See the
+[OWASP Password Storage Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html).
+
+The unprotected backup is an additional access weakness, separate from CWE-916.
+Only the dedicated ID-bound fixture can be exported; arbitrary queries, user
+selection and SQLite/WAL/SHM downloads are unavailable.
+
+The separate [teacher solution and patch scenarios](docs/teacher/weak-password.md)
+are outside static web roots and excluded from the Docker build context.
+Repository access must be managed separately from the playable application.
 
 ## Security challenge: CWE-779 logging of excessive data
 
@@ -168,7 +229,8 @@ npm run lint
 npm test
 ```
 
-From the repository root, `npm test` runs 10 client cart-storage tests followed by 22 backend integration tests. Client checks cover persistence, reloads, malformed data, integer validation, deduplication, removal of injected account and price fields, and storage failures.
+From the repository root, `npm test` runs the client cart-storage tests and all backend
+integration tests, including the offline password challenge. Client checks cover persistence, reloads, malformed data, integer validation, deduplication, removal of injected account and price fields, and storage failures.
 
 Backend integration tests run against isolated temporary databases and cover product import validation and rollback, database-backed API responses, persistence across restarts, one-time seeding, stable database paths, literal SQL search, catalogue data, login/logout/session expiry, registration, rate limiting, request validation, stock and authoritative prices, persisted orders, account isolation, production demo-account exclusion, non-destructive initialization, and the CWE-779 challenge (unlimited logging and reset). Tests listen on temporary loopback ports; sandboxed execution may require the environment's supported local-network permission flow.
 
@@ -193,3 +255,157 @@ JSON mutation requests must use `Content-Type: application/json`, except the bod
 ## Branding assets
 
 The monochrome Dungeons & Dragons dragon-ampersand symbol is provided by [Simple Icons](https://github.com/simple-icons/simple-icons/blob/develop/icons/dungeonsanddragons.svg) under CC0 and is stored locally in `client/public/images/dnd-symbol.svg`. The shop wordmark is a local typographic composition inspired by the Dungeons & Dragons identity, with “Shop” added. Product illustrations remain in color.
+
+
+## University operation and US08 full reset
+
+This deployment is exclusively the authorized university exercise. No reset HTTP
+endpoint exists. Run the following commands from the repository root; run each next
+step only after the previous command succeeds. Do not delete database files or
+Docker volumes.
+
+### Start and activate the three exercises
+
+Set a private CHALLENGE_ADMIN_TOKEN in the operator environment (or the local,
+untracked .env) before starting. It protects the existing HTTP log-reset function;
+never put the token in frontend files, source control or student instructions.
+Without it, the existing log-reset endpoint is unprotected.
+
+~~~sh
+docker compose up --build -d
+docker compose exec shop npm run challenge:set -- weak-password true
+docker compose exec shop npm run challenge:set -- log-flood true
+~~~
+
+XSS has no switch: compose starts xss-preview alongside shop. Locally open
+http://localhost:8080/products, and use http://localhost:8080/challenges for tasks.
+The preview is on http://127.0.0.1:8081 (a deliberately different cookie host).
+For student access over the university network, configure SHOP_BIND_IP,
+XSS_BIND_IP, XSS_PREVIEW_ORIGIN and XSS_SHOP_ORIGINS for the assigned internal
+addresses and two distinct browser-reachable hosts. Loopback URLs on a student's
+machine do not point at the university server. Restrict access to the authorized
+network; use matching HTTPS origins if terminating TLS. Recreate containers after
+changing these environment values. Keep the existing preview sandbox, CSP,
+network isolation and resource/storage limits.
+
+### Status and individual resets
+
+/challenges shows **Fortschritt dieser Instanz**, shared by all participants:
+XSS requires manual proof of JavaScript execution; password uses the existing
+successful-target-login record (offline tool evidence is additionally required);
+logging uses actual sizeBytes >= thresholdBytes (10 MiB by default). Deactivated,
+unconfigured and unreachable states are displayed separately. Status refreshes on
+page load, return to the tab, and the refresh buttons.
+
+~~~sh
+curl http://localhost:8080/api/challenges/weak-password/status
+curl http://localhost:8080/api/challenges/log-flood/status
+docker compose exec shop npm run reset:password-challenge
+docker compose exec shop npm run reset:challenge
+~~~
+
+The individual password reset intentionally restores active mode, as before.
+The individual log reset only truncates the log. XSS resets by clearing the shop
+search; it has no database, cookies or saved completion. Individual challenge
+resets do not clear carts, orders or other accounts.
+
+### Full reset: preflight, stop, reset, start
+
+~~~sh
+# Read-only preflight while the shop is still running:
+docker compose exec shop npm run reset:shop -- --check
+# Continue only if the preflight succeeds:
+docker compose stop shop
+docker compose run --rm --no-deps shop npm run reset:shop
+docker compose up -d shop
+~~~
+
+The one-off reset container uses the same /data volume and database as shop.
+The original shop must remain stopped until reset succeeds. A shared exclusive
+operator lock prevents the running server and reset command from overlapping.
+Logs are on volatile tmpfs: stopping/recreating the shop discards that container's
+log; the reset also invokes the existing log.reset function. The one-off
+container has its own tmpfs, so its empty log is not a way to clear a running
+shop's log. Never use docker compose down -v for this procedure.
+
+For local development (same DB_PATH and CHALLENGE_LOG_PATH as the server):
+
+~~~sh
+npm run reset:shop -- --check
+# Stop npm run dev / npm start with Ctrl+C, then:
+npm run reset:shop
+npm run dev
+~~~
+
+The reset can be repeated. A stopped, initialized shop database is required;
+preflight/reset never initializes an unknown file, seeds it or cleans sessions
+before scope validation. If a crash/forced kill leaves *.operator.lock behind,
+first verify that **all** shop and reset processes/containers using that database
+are stopped. Only then remove that exact lock file (Docker: /data/shop.db.operator.lock;
+local default: server/shop.db.operator.lock). Never remove a live lock. Restart or
+retry the reset afterwards. Ordinary graceful shutdown removes the lock itself.
+
+### Defined reset scope and resulting state
+
+- Products: the six fixtures in server/data/products.json, including all original
+  names, descriptions, prices, images, categories, tags and stock values. Newly
+  seeded fixture IDs are recorded in reset_products. On migration, existing rows
+  are adopted only when ID and descriptive identity match the fixtures; price
+  and stock may differ due to exercise use. Registered fixture rows can later be
+  restored even after edits or deletion. An unrelated product with a matching ID
+  is not adopted merely by ID.
+- Accounts: Aria/aria and Finn/finn, marked is_demo=1, with their documented demo
+  password and original names; plus only the ID-bound fictitious password target
+  when it was provisioned. Ordinary registered accounts are **not** automatically
+  classified as test accounts. Unknown accounts, products, challenge rows or
+  broken foreign-key relationships abort the reset before any destructive reset
+  work. Resolve the data classification separately; there is no force-delete mode.
+- All orders, order items and sessions of this validated fixture-only database
+  are cleared. No foreign data is silently removed. Missing demo accounts are
+  recreated; ID collisions with unmarked accounts cause an abort.
+- Both challenge activation switches retain their previous values. The password
+  target's fixture hashes and progress are reset using the existing function;
+  a disabled, never-provisioned target stays unprovisioned. The log is empty.
+  XSS has no persisted progress to reset.
+- A new persistent resetVersion is committed with the database reset. Existing
+  browsers clear only the shop cart on next load, focus/tab return or before a
+  cart action/checkout. Tabs using the same origin also react to storage events.
+  Closed/offline browsers synchronize on their next server contact. Other
+  localStorage entries are preserved. Blocked storage still permits in-memory
+  shopping; an unreachable version check blocks the action without deleting the cart.
+- Products, login state, task status and page state are refreshed when a new
+  version is detected. Old order confirmations/search frames are discarded.
+  POST /api/orders requires X-Shop-Reset-Version; the version is checked inside
+  the write transaction. Old or missing versions cannot create a new order,
+  including after signing in again. Normal cart persistence remains unchanged
+  when the version stays the same.
+
+SQLite and a log file cannot commit atomically together. The server must stay
+stopped during reset. If a log/filesystem/database error interrupts the command,
+leave it stopped, resolve the error and repeat; do not report an unsuccessful
+reset as completed. The command exits nonzero on failure.
+
+### US08 acceptance checks
+
+US08-AK1: the documented operator command restores the fixture catalogue/test
+accounts, clears orders and invalidates browser carts through resetVersion.
+US08-AK2: isolated tests verify login and a new valid checkout after reset, and
+reject old cart generations even with a new session. US08-AK3: the commands,
+prerequisites, scope and resulting state are documented above. Automated reset
+checks use temporary/in-memory databases and temporary logs only; never run
+destructive tests against server/shop.db or the university volume.
+
+Optional real-browser regression (installed Chromium/Chrome, no extra npm package):
+
+~~~sh
+npm run build
+npm run test:browser
+~~~
+
+Set CHROME_PATH to the installed browser executable when needed. Windows defaults
+to the standard Google Chrome path; Linux defaults to chromium. Run as a regular
+user with the browser sandbox available. This check creates two independent
+browser contexts and another same-origin tab in a temporary profile. It verifies
+cart preservation/invalidations, unrelated storage, status transitions and network
+failures, login/checkout after reset, and actual JavaScript execution in the existing
+XSS preview. All servers, database and logs are isolated from the shop instance.

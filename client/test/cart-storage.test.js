@@ -185,3 +185,23 @@ test("a blocked browser storage getter does not crash the app", (t) => {
   assert.deepEqual(readCart(), []);
   assert.equal(writeCart([{ product_id: 1, quantity: 1 }]), false);
 });
+
+
+test("versioned carts preserve normal reloads, invalidate other browsers and never clear unrelated storage", async () => {
+  const { readCartForVersion, writeCartForVersion } = await import('../src/lib/cart-storage.js');
+  const cart = [{ product_id: 1, quantity: 2 }];
+  const browserA = memoryStorage({ preferences: 'keep', [CART_STORAGE_KEY]: JSON.stringify(cart) });
+  const browserB = memoryStorage({ preferences: 'keep', [CART_STORAGE_KEY]: JSON.stringify(cart) });
+  assert.deepEqual(readCartForVersion('initial', browserA), cart);
+  assert.deepEqual(readCartForVersion('after-reset', browserB), []);
+  assert.equal(writeCartForVersion(cart, 'initial', browserA), true);
+  assert.deepEqual(readCartForVersion('initial', browserA), cart);
+  assert.deepEqual(readCartForVersion('after-reset', browserA), []);
+  writeCartForVersion([], 'after-reset', browserA);
+  assert.deepEqual(readCartForVersion('after-reset', browserA), []);
+  assert.equal(browserA.getItem('preferences'), 'keep');
+  // A stale tab can only write an old generation, which readers discard.
+  writeCartForVersion(cart, 'initial', browserA);
+  assert.deepEqual(readCartForVersion('after-reset', browserA), []);
+  assert.equal(writeCartForVersion(cart, 'after-reset', null), false);
+});

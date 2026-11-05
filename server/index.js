@@ -1,6 +1,9 @@
 import { createApp } from './app.js';
-import { openDatabase } from './db.js';
+import { openDatabase, resolveDatabasePath } from './db.js';
+import { acquireRuntimeLock } from './runtime-lock.js';
 
+const release = acquireRuntimeLock(resolveDatabasePath());
+process.on('exit', release);
 const db = openDatabase();
 const port = process.env.PORT || 3001;
 const server = createApp(db).listen(port, (error) => {

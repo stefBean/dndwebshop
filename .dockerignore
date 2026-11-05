@@ -2,6 +2,13 @@ node_modules
 **/node_modules
 client/dist
 *.db
+**/*.db
+**/*.db-wal
+**/*.db-shm
+docs
+.codex
 .git
 .idea
 .env
+
+*.operator.lock

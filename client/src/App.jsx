@@ -8,6 +8,7 @@ import CartPage from "./pages/CartPage.jsx";
 import AuthPage from "./pages/AuthPage.jsx";
 import OrdersPage from "./pages/OrdersPage.jsx";
 import AboutPage from "./pages/AboutPage.jsx";
+import ChallengesPage from "./pages/ChallengesPage.jsx";
 function NotFoundPage() {
   return (
     <main className="shell py-16 sm:py-24">
@@ -40,6 +41,7 @@ export default function App() {
             <Route path="register" element={<AuthPage mode="register" />} />
             <Route path="account/orders" element={<OrdersPage />} />
             <Route path="about" element={<AboutPage />} />
+            <Route path="challenges" element={<ChallengesPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>

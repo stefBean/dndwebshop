@@ -5,6 +5,8 @@ import { hashPassword, hashPasswordSync, verifyPassword, tokenHash } from './sec
 import { getProduct, getProducts } from './products.js';
 import { createChallengeState } from './challenges.js';
 import { createChallengeRouter } from './challenge-log.js';
+import { createPasswordChallengeRouter, isPasswordChallengeTarget, passwordLoginSnapshot,
+  verifyChallengePassword, passwordLoginIsCurrent, markPasswordChallengeSolved } from './challenge-password.js';
 
 const cookieName = 'dice_lore_session';
 const sessionLifetime = 24 * 60 * 60 * 1000;
@@ -79,13 +81,14 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
   // The CWE-779 challenge keeps its own body limit and is mounted before the
   // shared JSON parser so it cannot weaken the hardened shop API.
   app.use(createChallengeRouter({ ...challengeOptions, isActive: () => challenges.isActive('log-flood') }));
+  app.use(createPasswordChallengeRouter(db, challenges));
   app.use(express.json({ limit: '16kb' }));
   app.use('/api', (req, res, next) => {
     const token = cookieToken(req);
     if (token) {
       const user = db.prepare(`SELECT users.* FROM sessions JOIN users ON users.id = sessions.user_id
         WHERE sessions.token_hash = ? AND sessions.expires_at > ?`).get(tokenHash(token), Date.now());
-      if (user && (allowDemoAccounts || !user.is_demo)) {
+      if (user && (allowDemoAccounts || !user.is_demo || isPasswordChallengeTarget(db, user))) {
         req.user = publicUser(user);
       }
     }
@@ -145,14 +148,20 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
       return res.status(400).json({ error: 'Enter a valid username and password.' });
     }
     const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username.trim().toLowerCase());
-    const weakChallenge = challenges.isActive('weak-password') && user?.is_demo === 1 && !!user.challenge_password_hash;
-    const verified = weakChallenge
-      ? challenges.verifyDemoPassword(password, user.challenge_password_hash)
+    const challengeLogin = passwordLoginSnapshot(db, user);
+    const verified = challengeLogin
+      ? await verifyChallengePassword(password, challengeLogin)
       : await verifyPassword(password, user?.password_hash || dummyHash);
-    if (!user || !verified || (!allowDemoAccounts && user.is_demo)) {
+    if (!user || !verified || (!allowDemoAccounts && user.is_demo && !challengeLogin)) {
       return res.status(401).json({ error: 'That username and password do not match.' });
     }
-    startSession(req, res, user);
+    const signedIn = db.transaction(() => {
+      if (challengeLogin && !passwordLoginIsCurrent(db, challengeLogin)) return false;
+      startSession(req, res, user);
+      if (challengeLogin?.active) markPasswordChallengeSolved(db);
+      return true;
+    }).immediate();
+    if (!signedIn) return res.status(401).json({ error: 'The exercise changed during login. Please try again.' });
     res.json({ user: publicUser(user) });
   });
 
@@ -188,7 +197,13 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     const orders = db.prepare('SELECT id, number, total_cents, created_at FROM orders WHERE user_id = ? ORDER BY id DESC').all(req.user.id);
     res.json({ orders: orders.map(orderDetails) });
   });
-  const placeOrder = db.transaction((userId, items) => {
+  app.get('/api/shop/state', (req, res) => {
+    res.json({ resetVersion: db.prepare('SELECT reset_version FROM shop_state WHERE id = 1').get().reset_version });
+  });
+  const placeOrder = db.transaction((userId, items, version) => {
+    if (version !== db.prepare('SELECT reset_version FROM shop_state WHERE id = 1').get().reset_version) {
+      throw Object.assign(new Error('The shop was reset. Reload your cart before ordering.'), { status: 409 });
+    }
     const rows = items.map((item) => {
       const product = getProduct(db, item.product_id);
       if (!product) throw Object.assign(new Error('One of the products is no longer available. Please update your cart.'), { status: 400 });
@@ -211,7 +226,7 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
       return res.status(400).json({ error: 'Your cart must contain products with whole-number quantities from 1 to 99.' });
     }
     if (new Set(items.map((item) => item.product_id)).size !== items.length) return res.status(400).json({ error: 'Each product must appear only once in your cart.' });
-    res.status(201).json({ order: placeOrder(req.user.id, items) });
+    res.status(201).json({ order: placeOrder.immediate(req.user.id, items, req.get('X-Shop-Reset-Version')) });
   });
 
   app.use('/api', (req, res) => res.status(404).json({ error: 'This API endpoint does not exist.' }));

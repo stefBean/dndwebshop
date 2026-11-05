@@ -4,6 +4,7 @@ import Brand from "./Brand.jsx";
 const links = [
   { to: "/products", label: "The collection" },
   { to: "/about", label: "Our story" },
+  { to: "/challenges", label: "Aufgaben" },
   { to: "/account/orders", label: "Your orders" },
 ];
 export default function Footer() {

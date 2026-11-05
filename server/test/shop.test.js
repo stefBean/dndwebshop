@@ -23,7 +23,7 @@ async function fixture(t, { filename = ':memory:', demoAccounts = true, producti
   });
   const request = (url, { cookie, body, rawBody, headers, ...options } = {}) => fetch(base + url, {
     ...options,
-    headers: { ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...(cookie ? { Cookie: cookie } : {}), ...headers },
+    headers: { ...(url === '/api/orders' ? { 'X-Shop-Reset-Version': db.prepare('SELECT reset_version FROM shop_state WHERE id = 1').get().reset_version } : {}), ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...(cookie ? { Cookie: cookie } : {}), ...headers },
     ...(rawBody !== undefined ? { body: rawBody } : body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   const login = async (username = 'aria') => {
@@ -125,9 +125,10 @@ test('checkout validates quantities and stock, calculates prices on the server, 
 
 test('orders survive database reopen and remain private to the account that placed them', async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'dice-lore-test-'));
-  t.after(() => rm(directory, { recursive: true, force: true }));
   const filename = path.join(directory, 'shop.db');
   const { request, login } = await fixture(t, { filename });
+  // Close the fixture connection before deleting its files (required on Windows).
+  t.after(() => rm(directory, { recursive: true, force: true }));
   const aria = await login();
   const response = await request('/api/orders', { method: 'POST', cookie: aria, body: { items: [{ product_id: 2, quantity: 1 }] } });
   assert.equal(response.status, 201);
@@ -240,26 +241,28 @@ test('safe logging rejects large bodies, redacts secrets, rate limits and switch
   assert.equal((await (await request('/api/challenges/log-flood/status')).json()).isActive, false);
 });
 
-test('weak hashing is limited to the demo target and disabling restores scrypt verification', async (t) => {
+test('the retired demo MD5 field is inert even while the password challenge is active', async (t) => {
   const { db, request } = await fixture(t, { activeChallenges: ['weak-password'] });
   const user = db.prepare("SELECT * FROM users WHERE username = 'aria'").get();
   assert.match(user.password_hash, /^scrypt:/);
-  assert.match(user.challenge_password_hash, /^[a-f0-9]{32}$/);
+  assert.equal(user.challenge_password_hash, null);
   const body = { username: user.username, password };
   assert.equal((await request('/api/auth/login', { method: 'POST', body })).status, 200);
-  // Make the challenge credential differ, so this proves which branch is used.
+  // A legacy MD5 value must never alter a regular demo account's login.
   db.prepare('UPDATE users SET challenge_password_hash = ? WHERE id = ?').run('0'.repeat(32), user.id);
-  assert.equal((await request('/api/auth/login', { method: 'POST', body })).status, 401);
+  assert.equal((await request('/api/auth/login', { method: 'POST', body })).status, 200);
   db.prepare("UPDATE challenges SET active = 0 WHERE id = 'weak-password'").run();
   assert.equal((await request('/api/auth/login', { method: 'POST', body })).status, 200);
   assert.equal(db.prepare('SELECT password_hash FROM users WHERE id = ?').get(user.id).password_hash, user.password_hash);
 });
 
-test('production ignores active challenge flags', async (t) => {
-  const { request } = await fixture(t, { production: true, activeChallenges: ['weak-password', 'log-flood'] });
+test('production honors the logging flag and still excludes regular demo accounts', async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'chs-production-log-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const { request } = await fixture(t, { production: true, activeChallenges: ['weak-password', 'log-flood'], challengeOptions: { logPath: path.join(directory, 'app.log') } });
   const status = await (await request('/api/challenges/log-flood/status')).json();
-  assert.equal(status.isActive, false);
-  assert.equal((await request('/api/log.flood', { method: 'POST', body: { text: 'A'.repeat(50 * 1024) } })).status, 413);
+  assert.equal(status.isActive, true);
+  assert.equal((await request('/api/log.flood', { method: 'POST', body: { text: 'A'.repeat(50 * 1024) } })).status, 200);
   assert.equal((await request('/api/auth/login', { method: 'POST', body: { username: 'aria', password } })).status, 401);
 });
 

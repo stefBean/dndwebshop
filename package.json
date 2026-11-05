@@ -8,7 +8,9 @@
     "dev": "node scripts/dev.mjs",
     "build": "npm --prefix client run build",
     "lint": "npm --prefix client run lint",
-    "test": "npm --prefix client test && npm --prefix server test"
+    "test": "npm --prefix client test && npm --prefix server test",
+    "reset:shop": "npm --prefix server run reset:shop --",
+    "test:browser": "node scripts/test-reset-browser.mjs"
   },
   "private": true
 }
