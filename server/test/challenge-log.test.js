@@ -21,7 +21,7 @@ test('status returns an empty unsolved state before the first log entry', async 
   const directory = await temporaryDirectory(t);
   const logPath = path.join(directory, 'not-created', 'app.log');
   const app = express();
-  app.use(createChallengeRouter({ logPath, adminToken: '' }));
+  app.use(createChallengeRouter({ logPath, adminToken: '', isActive: () => true }));
   const server = app.listen(0, '127.0.0.1');
   await once(server, 'listening');
   t.after(async () => {

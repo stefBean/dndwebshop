@@ -8,7 +8,9 @@ The storefront uses a simple black-and-white interface with purple accents and f
 
 The homepage's reusable `AnimatedPotion` component renders moving purple liquid with CSS animations. Its pause/play control stops or resumes the animation; the system's reduced-motion preference displays a still version automatically. No animation library or external asset requests are required.
 
-Search matches product names, descriptions, and categories as plain text. Category filters, price/name sorting, quick-view dialogs, product detail routes, quantity editing, empty/error states, registration, login/logout, and private order history are included. The internal SSD environment includes the CWE-779 logging challenge and an always-available, isolated DOM-XSS search challenge (CWE-80 / OWASP A05:2025). See [DOM-XSS setup, payload, isolation, manual checks and reset](challenge-xss/README.md).
+
+Search matches product names, descriptions, and categories as plain text. Category filters, price/name sorting, quick-view dialogs, product detail routes, quantity editing, empty/error states, registration, login/logout, and private order history are included. Intentionally vulnerable behavior is controlled by database-backed challenge flags, disabled by default (see below).
+=======
 
 ## Local development
 
@@ -67,10 +69,10 @@ Refresh the shop after importing or editing the database. Catalogue categories a
 
 In development only, two fictitious customer accounts are available:
 
-| Email | Password |
+| Username | Password |
 | --- | --- |
-| `aria@diceandlore.test` | `RollForAdventure!24` |
-| `finn@diceandlore.test` | `RollForAdventure!24` |
+| `aria` | `RollForAdventure!24` |
+| `finn` | `RollForAdventure!24` |
 
 Customers can also create their own accounts. Passwords require 12–128 characters with uppercase, lowercase, and a number. Passwords are salted and hashed with scrypt; raw passwords are never stored. Sessions use random opaque tokens in HttpOnly, SameSite=Lax cookies. Only token hashes are stored server-side. Sessions expire after 24 hours and are invalidated on logout. Login and registration share a limit of eight attempts per IP in two minutes.
 
@@ -82,12 +84,44 @@ The cart persists across navigation and browser reloads in `localStorage` under 
 
 Names, prices, account details, passwords, and authentication tokens are never saved in the cart. Product information comes from the API and authentication remains a server-side session with an HttpOnly cookie. Checkout requires sign-in and is a simulation: it never charges money or initiates shipping. The backend validates quantities and stock, calculates authoritative totals, saves order-line snapshots, and reduces stock atomically. Order history belongs to the signed-in account.
 
+## Safe and challenge modes
+
+`challenges.active` is a SQLite boolean (`0` or `1`), read by `isActive(id)` on
+requests. Both existing challenges default to inactive. Flags persist across
+restarts and database initialization. Toggle them from the server directory:
+
+```sh
+npm run challenge:set -- log-flood true
+npm run challenge:set -- weak-password true
+# Return to safe behavior:
+npm run challenge:set -- log-flood false
+npm run challenge:set -- weak-password false
+```
+
+No restart is required. `NODE_ENV=production` always uses safe behavior,
+regardless of stored flags. Flags cannot be changed through public HTTP requests.
+Use the same `DB_PATH` as the running server.
+
+Inactive logging accepts at most 10 KB, writes metadata without headers or body,
+limits requests to 30 per minute per IP, and rotates at 64 KiB. Active logging
+accepts 1 MB bodies and retains full headers/body in the isolated challenge log,
+with a 32 MiB application cap. Disabling a challenge does not erase previously
+written sensitive challenge data; use the log reset command to clear it.
+
+The weak-password flag enables MD5 verification only for the seeded Aria demo
+account's separate `challenge_password_hash`. Its regular scrypt credential is
+preserved, so turning the flag off immediately restores safe verification.
+Finn and registered customers always use scrypt. Passwords are submitted to the
+server for verification; serve the shop over HTTPS outside local development.
+The XSS exercise described in the concept PDF is not implemented in this codebase;
+search continues to render plain text.
+
 ## Security challenge: CWE-779 logging of excessive data
 
 The OWASP A09:2025 challenge is implemented in `server/challenge-log.js` and is
-isolated from the normal shop API. The challenge endpoint is intentionally
-vulnerable: it writes every header and the complete request body to a dedicated
-log file, unredacted and without any size or count limit.
+isolated from the normal shop API. When its flag is active, the challenge endpoint intentionally writes every header
+and the complete request body to a dedicated log file, unredacted and without
+rate limiting, up to the 32 MiB storage cap.
 
 Endpoints:
 
@@ -102,7 +136,7 @@ The log defaults to `/tmp/dice-lore-challenge/app.log` and can be changed with
 tmpfs, so a flood cannot fill the container or the persistent database volume.
 Set `CHALLENGE_ADMIN_TOKEN` to require an `X-Challenge-Token` header on reset.
 
-Reproduce the challenge:
+Reproduce the challenge (first run `npm run challenge:set -- log-flood true` from `server/`):
 
 ```sh
 # Baseline size
@@ -145,8 +179,8 @@ Backend integration tests run against isolated temporary databases and cover pro
 | GET | `/api/products` | Full catalogue; optional `search` query |
 | GET | `/api/products/:id` | Product details or 404 |
 | GET | `/api/auth/me` | `{ user }`, null when signed out |
-| POST | `/api/auth/login` | `{ email, password }` |
-| POST | `/api/auth/register` | `{ name, email, password }` |
+| POST | `/api/auth/login` | `{ username, password }` |
+| POST | `/api/auth/register` | `{ name, username, password }` |
 | POST | `/api/auth/logout` | Invalidate session, return 204 |
 | GET | `/api/orders` | Signed-in customer's order history |
 | POST | `/api/orders` | `{ items: [{ product_id, quantity }] }`; create simulated order |
@@ -159,17 +193,3 @@ JSON mutation requests must use `Content-Type: application/json`, except the bod
 ## Branding assets
 
 The monochrome Dungeons & Dragons dragon-ampersand symbol is provided by [Simple Icons](https://github.com/simple-icons/simple-icons/blob/develop/icons/dungeonsanddragons.svg) under CC0 and is stored locally in `client/public/images/dnd-symbol.svg`. The shop wordmark is a local typographic composition inspired by the Dungeons & Dragons identity, with “Shop” added. Product illustrations remain in color.
-
-The legacy demo-account email addresses and `dice-and-lore.cart.v1` storage key are retained for compatibility with existing accounts and saved carts.
-
-## DOM-XSS search preview (CWE-80 / OWASP A05:2025)
-
-Run `docker compose up --build -d` to start the shop and the separate XSS preview
-service together. Open the shop at http://localhost:8080/products; the preview is
-served from http://127.0.0.1:8081, deliberately using a different cookie host.
-No activation flag, database migration or XSS progress store is needed.
-The logging challenge and its reset command remain unchanged.
-
-See [the XSS challenge guide](challenge-xss/README.md) for the reproducible
-JavaScript test input, manual isolation checks, resource limits, network
-limitations, remote-host configuration, reset and the textContent correction.

@@ -3,11 +3,13 @@ import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { hashPassword, hashPasswordSync, verifyPassword, tokenHash } from './security.js';
 import { getProduct, getProducts } from './products.js';
+import { createChallengeState } from './challenges.js';
 import { createChallengeRouter } from './challenge-log.js';
 
 const cookieName = 'dice_lore_session';
 const sessionLifetime = 24 * 60 * 60 * 1000;
-const publicUser = (user) => ({ id: user.id, name: user.name, email: user.email });
+const publicUser = (user) => ({ id: user.id, name: user.name, username: user.username });
+const validUsername = (value) => typeof value === 'string' && /^[a-z0-9_.-]{3,32}$/i.test(value.trim());
 const validId = (value) => /^\d+$/.test(String(value)) && Number.isSafeInteger(Number(value)) && Number(value) > 0;
 
 function cookieToken(req) {
@@ -22,6 +24,7 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     throw new Error('XSS_PREVIEW_ORIGIN must be an HTTP(S) origin without a path.');
   }
   const app = express();
+  const challenges = createChallengeState(db, { production });
   app.disable('x-powered-by');
 
   const internalHttpTest = process.env.INTERNAL_HTTP_TEST === 'true';
@@ -75,7 +78,7 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
   });
   // The CWE-779 challenge keeps its own body limit and is mounted before the
   // shared JSON parser so it cannot weaken the hardened shop API.
-  app.use(createChallengeRouter(challengeOptions));
+  app.use(createChallengeRouter({ ...challengeOptions, isActive: () => challenges.isActive('log-flood') }));
   app.use(express.json({ limit: '16kb' }));
   app.use('/api', (req, res, next) => {
     const token = cookieToken(req);
@@ -136,62 +139,34 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
   });
 
   app.get('/api/auth/me', (req, res) => res.json({ user: req.user || null }));
-  /*app.post('/api/auth/login', authLimit, async (req, res) => {
-    const { email, password } = req.body || {};
-    if (typeof email !== 'string' || email.length > 254 || typeof password !== 'string' || password.length > 128) {
-      return res.status(400).json({ error: 'Enter a valid email address and password.' });
+  app.post('/api/auth/login', authLimit, async (req, res) => {
+    const { username, password } = req.body || {};
+    if (!validUsername(username) || typeof password !== 'string' || password.length > 128) {
+      return res.status(400).json({ error: 'Enter a valid username and password.' });
     }
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.trim().toLowerCase());
-    const verified = await verifyPassword(password, user?.password_hash || dummyHash);
+    const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username.trim().toLowerCase());
+    const weakChallenge = challenges.isActive('weak-password') && user?.is_demo === 1 && !!user.challenge_password_hash;
+    const verified = weakChallenge
+      ? challenges.verifyDemoPassword(password, user.challenge_password_hash)
+      : await verifyPassword(password, user?.password_hash || dummyHash);
     if (!user || !verified || (!allowDemoAccounts && user.is_demo)) {
-      return res.status(401).json({
-        error: 'That email and password do not match.'
-      });
+      return res.status(401).json({ error: 'That username and password do not match.' });
     }
-    startSession(req, res, user);
-    res.json({ user: publicUser(user) });
-  });*/
-
-  app.post('/api/auth/login', authLimit, (req, res) => {   // For client side hashing
-    const { email, password } = req.body || {};
-  
-    if (
-      typeof email !== 'string' ||
-      email.length > 254 ||
-      typeof password !== 'string' ||
-      !/^[a-f0-9]{32}$/i.test(password)
-    ) {
-      return res.status(400).json({ error: 'Enter a valid email address and password hash.' });
-    }
-  
-    const user = db
-      .prepare('SELECT * FROM users WHERE email = ?')
-      .get(email.trim().toLowerCase());
-  
-    const matches =
-      user &&
-      !(production && user.is_demo) &&
-      user.password_hash === password.toLowerCase();
-  
-    if (!matches) {
-      return res.status(401).json({ error: 'That email and password do not match.' });
-    }
-  
     startSession(req, res, user);
     res.json({ user: publicUser(user) });
   });
 
   app.post('/api/auth/register', authLimit, async (req, res) => {
-    const { name, email, password } = req.body || {};
+    const { name, username, password } = req.body || {};
     if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 80) return res.status(400).json({ error: 'Enter a name between 2 and 80 characters.' });
-    if (typeof email !== 'string' || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return res.status(400).json({ error: 'Enter a valid email address.' });
-    if (typeof password !== 'string' || !/^[a-f0-9]{32}$/i.test(password)) {
-      return res.status(400).json({ error: 'Invalid hash.' });
+    if (!validUsername(username)) return res.status(400).json({ error: 'Use a username of 3–32 letters, numbers, dots, underscores or hyphens.' });
+    if (typeof password !== 'string' || password.length < 12 || password.length > 128 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+      return res.status(400).json({ error: 'Use 12–128 characters with uppercase, lowercase and a number.' });
     }  
-    const normalized = email.trim().toLowerCase();
+    const normalized = username.trim().toLowerCase();
     const passwordHash = await hashPassword(password);
-    const result = db.prepare('INSERT OR IGNORE INTO users (name, email, password_hash) VALUES (?, ?, ?)').run(name.trim(), normalized, passwordHash);
-    if (!result.changes) return res.status(409).json({ error: 'An account with that email already exists. Please sign in.' });
+    const result = db.prepare('INSERT OR IGNORE INTO users (name, username, password_hash) VALUES (?, ?, ?)').run(name.trim(), normalized, passwordHash);
+    if (!result.changes) return res.status(409).json({ error: 'An account with that username already exists. Please sign in.' });
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
     startSession(req, res, user);
     res.status(201).json({ user: publicUser(user) });

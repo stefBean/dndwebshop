@@ -130,7 +130,7 @@ test("prices, product details, identities and credentials are stripped on read a
       name: "Do not persist",
       price_cents: 1,
       total_cents: 2,
-      user: { id: 10, email: "customer@example.test" },
+      user: { id: 10, username: "customer" },
       password: "Do not persist",
       token: "Do not persist",
       session: "Do not persist",
