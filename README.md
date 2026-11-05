@@ -67,12 +67,13 @@ Refresh the shop after importing or editing the database. Catalogue categories a
 
 ## Development accounts
 
-In development only, two fictitious customer accounts are available:
+In development only, fictitious test accounts are available:
 
 | Username | Password |
 | --- | --- |
 | `aria` | `RollForAdventure!24` |
 | `finn` | `RollForAdventure!24` |
+| `admin` | `DungeonMaster!24` |
 
 Customers can also create their own accounts. Passwords require 12–128 characters with uppercase, lowercase, and a number. Passwords are salted and hashed with scrypt; raw passwords are never stored. Sessions use random opaque tokens in HttpOnly, SameSite=Lax cookies. Only token hashes are stored server-side. Sessions expire after 24 hours and are invalidated on logout. Login and registration share a limit of eight attempts per IP in two minutes.
 
@@ -108,13 +109,33 @@ accepts 1 MB bodies and retains full headers/body in the isolated challenge log,
 with a 32 MiB application cap. Disabling a challenge does not erase previously
 written sensitive challenge data; use the log reset command to clear it.
 
-The weak-password flag enables MD5 verification only for the seeded Aria demo
+The weak-password flag enables MD5 verification only for the seeded Admin demo
 account's separate `challenge_password_hash`. Its regular scrypt credential is
 preserved, so turning the flag off immediately restores safe verification.
-Finn and registered customers always use scrypt. Passwords are submitted to the
+Aria, Finn and registered customers always use scrypt. Passwords are submitted to the
 server for verification; serve the shop over HTTPS outside local development.
 The XSS exercise described in the concept PDF is not implemented in this codebase;
 search continues to render plain text.
+
+### Retrieving the weak admin password hash
+
+Enable the exercise, then anonymously retrieve its target hash:
+
+```sh
+# From server/:
+npm run challenge:set -- weak-password true
+curl http://localhost:3001/api/challenges/weak-password/hash
+```
+
+The response contains `{ username: "admin", algorithm: "md5", password_hash: "…" }`.
+Participants can test password candidates offline against this unsalted MD5 hash,
+then sign in through the normal username/password form as `admin`.
+Only the seeded `is_demo` admin account is exposed; a regular account named
+`admin` is never overwritten or exposed. This is a test account, with no added
+administrative privileges. Other users' hashes and the preserved scrypt hash
+are never returned. The response is not cached. Disabling the flag immediately
+returns the endpoint to 404 and restores scrypt verification. Production always
+returns 404, even if the database flag is enabled.
 
 ## Security challenge: CWE-779 logging of excessive data
 

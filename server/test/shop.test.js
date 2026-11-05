@@ -240,12 +240,12 @@ test('safe logging rejects large bodies, redacts secrets, rate limits and switch
   assert.equal((await (await request('/api/challenges/log-flood/status')).json()).isActive, false);
 });
 
-test('weak hashing is limited to the demo target and disabling restores scrypt verification', async (t) => {
+test('weak hashing is limited to the admin demo target and disabling restores scrypt verification', async (t) => {
   const { db, request } = await fixture(t, { activeChallenges: ['weak-password'] });
-  const user = db.prepare("SELECT * FROM users WHERE username = 'aria'").get();
+  const user = db.prepare("SELECT * FROM users WHERE username = 'admin'").get();
   assert.match(user.password_hash, /^scrypt:/);
   assert.match(user.challenge_password_hash, /^[a-f0-9]{32}$/);
-  const body = { username: user.username, password };
+  const body = { username: user.username, password: 'DungeonMaster!24' };
   assert.equal((await request('/api/auth/login', { method: 'POST', body })).status, 200);
   // Make the challenge credential differ, so this proves which branch is used.
   db.prepare('UPDATE users SET challenge_password_hash = ? WHERE id = ?').run('0'.repeat(32), user.id);
@@ -305,4 +305,39 @@ test('legacy email accounts migrate to unique usernames without losing orders or
   const before = db.prepare('SELECT * FROM users ORDER BY id').all();
   initializeDatabase(db, { demoAccounts: false });
   assert.deepEqual(db.prepare('SELECT * FROM users ORDER BY id').all(), before);
+});
+
+test('active weak-password challenge anonymously exposes only the admin test hash', async (t) => {
+  const { db, request } = await fixture(t);
+  const endpoint = '/api/challenges/weak-password/hash';
+  assert.equal((await request(endpoint)).status, 404);
+  db.prepare("UPDATE challenges SET active = 1 WHERE id = 'weak-password'").run();
+  const response = await request(endpoint);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  const target = db.prepare("SELECT * FROM users WHERE username = 'admin'").get();
+  assert.deepEqual(await response.json(), {
+    username: 'admin', algorithm: 'md5', password_hash: target.challenge_password_hash,
+  });
+  const { createHash } = await import('node:crypto');
+  assert.equal(createHash('md5').update('DungeonMaster!24').digest('hex'), target.challenge_password_hash);
+  const login = await request('/api/auth/login', { method: 'POST', body: { username: 'admin', password: 'DungeonMaster!24' } });
+  assert.equal(login.status, 200);
+  assert.deepEqual(Object.keys((await login.json()).user).sort(), ['id', 'name', 'username']);
+  // Query parameters must not permit choosing another account or a secure hash.
+  assert.deepEqual(await (await request(endpoint + '?username=finn')).json(), {
+    username: 'admin', algorithm: 'md5', password_hash: target.challenge_password_hash,
+  });
+  db.prepare("UPDATE challenges SET active = 0 WHERE id = 'weak-password'").run();
+  assert.equal((await request(endpoint)).status, 404);
+  assert.match(db.prepare("SELECT password_hash FROM users WHERE username = 'admin'").get().password_hash, /^scrypt:/);
+});
+
+test('password hash disclosure is unavailable in production and without a demo admin', async (t) => {
+  const production = await fixture(t, { production: true, activeChallenges: ['weak-password'] });
+  assert.equal((await production.request('/api/challenges/weak-password/hash')).status, 404);
+  assert.equal((await production.request('/api/auth/login', { method: 'POST', body: { username: 'admin', password: 'DungeonMaster!24' } })).status, 401);
+  const development = await fixture(t, { activeChallenges: ['weak-password'] });
+  development.db.prepare("UPDATE users SET is_demo = 0 WHERE username = 'admin'").run();
+  assert.equal((await development.request('/api/challenges/weak-password/hash')).status, 404);
 });

@@ -138,6 +138,19 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     res.json(product);
   });
 
+  // Deliberate hash disclosure for the isolated, opt-in password exercise.
+  app.get('/api/challenges/weak-password/hash', (req, res) => {
+    if (!challenges.isActive('weak-password')) {
+      return res.status(404).json({ error: 'This challenge is not active.' });
+    }
+    const target = db.prepare(`SELECT username, challenge_password_hash FROM users
+      WHERE username = 'admin' AND is_demo = 1`).get();
+    if (!target?.challenge_password_hash) {
+      return res.status(404).json({ error: 'The challenge test account is not available.' });
+    }
+    res.json({ username: target.username, algorithm: 'md5', password_hash: target.challenge_password_hash });
+  });
+
   app.get('/api/auth/me', (req, res) => res.json({ user: req.user || null }));
   app.post('/api/auth/login', authLimit, async (req, res) => {
     const { username, password } = req.body || {};
@@ -145,7 +158,7 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
       return res.status(400).json({ error: 'Enter a valid username and password.' });
     }
     const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username.trim().toLowerCase());
-    const weakChallenge = challenges.isActive('weak-password') && user?.is_demo === 1 && !!user.challenge_password_hash;
+    const weakChallenge = challenges.isActive('weak-password') && user?.is_demo === 1 && user.username.toLowerCase() === 'admin' && !!user.challenge_password_hash;
     const verified = weakChallenge
       ? challenges.verifyDemoPassword(password, user.challenge_password_hash)
       : await verifyPassword(password, user?.password_hash || dummyHash);

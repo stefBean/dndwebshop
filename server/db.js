@@ -129,16 +129,20 @@ export function initializeDatabase(db, {
 
   if (demoAccounts) {
     const insert = db.prepare('INSERT OR IGNORE INTO users (name, username, password_hash, is_demo) VALUES (?, ?, ?, 1)');
-    for (const [name, username] of [['Aria', 'aria'], ['Finn', 'finn']]) {
+    for (const [name, username, password] of [
+      ['Aria', 'aria', 'RollForAdventure!24'],
+      ['Finn', 'finn', 'RollForAdventure!24'],
+      ['Admin', 'admin', 'DungeonMaster!24'],
+    ]) {
       if (!db.prepare('SELECT id FROM users WHERE username = ?').get(username)) {
-        insert.run(name, username, hashPasswordSync('RollForAdventure!24'));
+        insert.run(name, username, hashPasswordSync(password));
       }
     }
   }
   if (demoAccounts) {
     db.prepare(`UPDATE users SET challenge_password_hash = ?
-      WHERE username = 'aria' AND is_demo = 1 AND challenge_password_hash IS NULL`)
-      .run(createHash('md5').update('RollForAdventure!24').digest('hex'));
+      WHERE username = 'admin' AND is_demo = 1 AND challenge_password_hash IS NULL`)
+      .run(createHash('md5').update('DungeonMaster!24').digest('hex'));
   }
   db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(Date.now());
   return db;
