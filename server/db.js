@@ -99,7 +99,7 @@ export function initializeDatabase(db, {
     const users = [
       ['Aria', 'aria@diceandlore.test', hashPasswordSync('RollForAdventure!24')],
       ['Finn', 'finn@diceandlore.test', hashPasswordSync('RollForAdventure!24')],
-      ['Admin', 'admin@diceandlore.com', 'ab99bfafeb719a0cfdd0e6699ced2d14'],
+      ['Admin', 'admin@diceandlore.com', '0cef1fb10f60529028a71f58e54ed07b'],
     ];
   
     for (const [name, email, passwordHash] of users) {
@@ -108,7 +108,7 @@ export function initializeDatabase(db, {
       }
     }
   }
-  
+
   db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(Date.now());
   return db;
 }
