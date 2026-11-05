@@ -21,8 +21,12 @@ function positiveNumber(value, fallback) {
 }
 
 async function fileSize(file) {
-  const info = await stat(file, { throwIfNoEntry: false });
-  return info?.size ?? 0;
+  try {
+    return (await stat(file)).size;
+  } catch (error) {
+    if (error.code === 'ENOENT') return 0;
+    throw error;
+  }
 }
 
 export function createChallengeLog({
@@ -73,7 +77,11 @@ export function createChallengeLog({
   function reset() {
     return enqueue(async () => {
       await mkdir(directory, { recursive: true });
-      await truncate(logPath, 0);
+      try {
+        await truncate(logPath, 0);
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+      }
       return status();
     });
   }
