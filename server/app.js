@@ -8,7 +8,8 @@ import { createChallengeRouter } from './challenge-log.js';
 
 const cookieName = 'dice_lore_session';
 const sessionLifetime = 24 * 60 * 60 * 1000;
-const publicUser = (user) => ({ id: user.id, name: user.name, email: user.email });
+const publicUser = (user) => ({ id: user.id, name: user.name, username: user.username });
+const validUsername = (value) => typeof value === 'string' && /^[a-z0-9_.-]{1,32}$/i.test(value.trim());
 const validId = (value) => /^\d+$/.test(String(value)) && Number.isSafeInteger(Number(value)) && Number(value) > 0;
 
 function cookieToken(req) {
@@ -130,33 +131,33 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
 
   app.get('/api/auth/me', (req, res) => res.json({ user: req.user || null }));
   app.post('/api/auth/login', authLimit, async (req, res) => {
-    const { email, password } = req.body || {};
-    if (typeof email !== 'string' || email.length > 254 || typeof password !== 'string' || password.length > 128) {
-      return res.status(400).json({ error: 'Enter a valid email address and password.' });
+    const { username, password } = req.body || {};
+    if (!validUsername(username) || typeof password !== 'string' || password.length > 128) {
+      return res.status(400).json({ error: 'Enter a valid username and password.' });
     }
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.trim().toLowerCase());
+    const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username.trim().toLowerCase());
     const weakChallenge = challenges.isActive('weak-password') && user?.is_demo === 1 && !!user.challenge_password_hash;
     const verified = weakChallenge
       ? challenges.verifyDemoPassword(password, user.challenge_password_hash)
       : await verifyPassword(password, user?.password_hash || dummyHash);
     if (!user || !verified || (!allowDemoAccounts && user.is_demo)) {
-      return res.status(401).json({ error: 'That email and password do not match.' });
+      return res.status(401).json({ error: 'That username and password do not match.' });
     }
     startSession(req, res, user);
     res.json({ user: publicUser(user) });
   });
 
   app.post('/api/auth/register', authLimit, async (req, res) => {
-    const { name, email, password } = req.body || {};
-    if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 80) return res.status(400).json({ error: 'Enter a name between 2 and 80 characters.' });
-    if (typeof email !== 'string' || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return res.status(400).json({ error: 'Enter a valid email address.' });
+    const { name, username, password } = req.body || {};
+    if (!validUsername(username)) return res.status(400).json({ error: 'Enter a name between 1 and 32 characters.' });
+    if (typeof username !== 'string' || username.trim().length < 1 || username.trim().length > 30 || !/^[a-zA-Z0-9_]+$/.test(username.trim())) return res.status(400).json({ error: 'Username between 1-30' });
     if (typeof password !== 'string' || password.length < 12 || password.length > 128 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
       return res.status(400).json({ error: 'Use 12–128 characters with uppercase, lowercase and a number.' });
     }  
-    const normalized = email.trim().toLowerCase();
+    const normalized = username.trim().toLowerCase();
     const passwordHash = await hashPassword(password);
-    const result = db.prepare('INSERT OR IGNORE INTO users (name, email, password_hash) VALUES (?, ?, ?)').run(name.trim(), normalized, passwordHash);
-    if (!result.changes) return res.status(409).json({ error: 'An account with that email already exists. Please sign in.' });
+    const result = db.prepare('INSERT OR IGNORE INTO users (name, username, password_hash) VALUES (?, ?, ?)').run(name.trim(), normalized, passwordHash);
+    if (!result.changes) return res.status(409).json({ error: 'An account with that username already exists. Please sign in.' });
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
     startSession(req, res, user);
     res.status(201).json({ user: publicUser(user) });

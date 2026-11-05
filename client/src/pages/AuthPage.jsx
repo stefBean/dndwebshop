@@ -18,7 +18,7 @@ export default function AuthPage({ mode = "login" }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -39,7 +39,7 @@ export default function AuthPage({ mode = "login" }) {
         method: "POST",
         body: {
           ...(register ? { name: name.trim() } : {}),
-          email: email.trim(),
+          username: username.trim(),
           password,
         },
       });
@@ -55,7 +55,7 @@ export default function AuthPage({ mode = "login" }) {
     }
   }
   function fillDemo(account) {
-    setEmail(`${account}@diceandlore.test`);
+    setUsername(account);
     setPassword("RollForAdventure!24");
     setError("");
   }
@@ -107,16 +107,17 @@ export default function AuthPage({ mode = "login" }) {
                   />
                 )}
                 <Field
-                  label="Email address"
-                  id="account-email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
+                  label="Username"
+                  id="account-username"
+                  name="username"
+                  type="username"
+                  autoComplete="username"
                   required
-                  maxLength={254}
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="you@yourguild.com"
+                  minLength={1}
+                  maxLength={32}
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  placeholder="your-adventure-name"
                   disabled={submitting}
                 />
                 <div>
@@ -209,9 +210,9 @@ export default function AuthPage({ mode = "login" }) {
                     </Button>
                   </div>
                   <p className="mt-4 break-all font-mono text-[10px] leading-6 text-muted">
-                    aria@diceandlore.test
+                    admin
                     <br />
-                    finn@diceandlore.test
+                    test_user
                     <br />
                     <span className="text-ink/80">
                       Password: RollForAdventure!24

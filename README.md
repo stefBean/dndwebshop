@@ -67,10 +67,10 @@ Refresh the shop after importing or editing the database. Catalogue categories a
 
 In development only, two fictitious customer accounts are available:
 
-| Email | Password |
-| --- | --- |
-| `aria@diceandlore.test` | `RollForAdventure!24` |
-| `finn@diceandlore.test` | `RollForAdventure!24` |
+| Username    | Password |
+|-------------| --- |
+| `admin`     | `RollForAdventure!24` |
+| `test_user` | `RollForAdventure!24` |
 
 Customers can also create their own accounts. Passwords require 12–128 characters with uppercase, lowercase, and a number. Passwords are salted and hashed with scrypt; raw passwords are never stored. Sessions use random opaque tokens in HttpOnly, SameSite=Lax cookies. Only token hashes are stored server-side. Sessions expire after 24 hours and are invalidated on logout. Login and registration share a limit of eight attempts per IP in two minutes.
 
@@ -172,19 +172,19 @@ Backend integration tests run against isolated temporary databases and cover pro
 
 ## API
 
-| Method | Path | Behavior |
-| --- | --- | --- |
-| GET | `/api/products` | Full catalogue; optional `search` query |
-| GET | `/api/products/:id` | Product details or 404 |
-| GET | `/api/auth/me` | `{ user }`, null when signed out |
-| POST | `/api/auth/login` | `{ email, password }` |
-| POST | `/api/auth/register` | `{ name, email, password }` |
-| POST | `/api/auth/logout` | Invalidate session, return 204 |
-| GET | `/api/orders` | Signed-in customer's order history |
+| Method | Path | Behavior                                                        |
+| --- | --- |-----------------------------------------------------------------|
+| GET | `/api/products` | Full catalogue; optional `search` query                         |
+| GET | `/api/products/:id` | Product details or 404                                          |
+| GET | `/api/auth/me` | `{ user }`, null when signed out                                |
+| POST | `/api/auth/login` | `{ username, password }`                                        |
+| POST | `/api/auth/register` | `{ name, username, password }`                                  |
+| POST | `/api/auth/logout` | Invalidate session, return 204                                  |
+| GET | `/api/orders` | Signed-in customer's order history                              |
 | POST | `/api/orders` | `{ items: [{ product_id, quantity }] }`; create simulated order |
-| POST | `/api/log.flood` | CWE-779 challenge logging endpoint |
-| GET | `/api/challenges/log-flood/status` | Challenge log size and threshold |
-| POST | `/api/challenges/log-flood/reset` | Truncate the challenge log |
+| POST | `/api/log.flood` | CWE-779 challenge logging endpoint                              |
+| GET | `/api/challenges/log-flood/status` | Challenge log size and threshold                                |
+| POST | `/api/challenges/log-flood/reset` | Truncate the challenge log                                      |
 
 JSON mutation requests must use `Content-Type: application/json`, except the bodyless logout request. Errors return `{ error }` with the appropriate HTTP status. Product and order prices use integer euro cents.
 
@@ -192,4 +192,4 @@ JSON mutation requests must use `Content-Type: application/json`, except the bod
 
 The monochrome Dungeons & Dragons dragon-ampersand symbol is provided by [Simple Icons](https://github.com/simple-icons/simple-icons/blob/develop/icons/dungeonsanddragons.svg) under CC0 and is stored locally in `client/public/images/dnd-symbol.svg`. The shop wordmark is a local typographic composition inspired by the Dungeons & Dragons identity, with “Shop” added. Product illustrations remain in color.
 
-The legacy demo-account email addresses and `dice-and-lore.cart.v1` storage key are retained for compatibility with existing accounts and saved carts.
+The legacy demo-account username addresses and `dice-and-lore.cart.v1` storage key are retained for compatibility with existing accounts and saved carts.

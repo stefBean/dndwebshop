@@ -26,8 +26,8 @@ async function fixture(t, { filename = ':memory:', demoAccounts = true, producti
     headers: { ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...(cookie ? { Cookie: cookie } : {}), ...headers },
     ...(rawBody !== undefined ? { body: rawBody } : body === undefined ? {} : { body: JSON.stringify(body) }),
   });
-  const login = async (email = 'aria@diceandlore.test') => {
-    const response = await request('/api/auth/login', { method: 'POST', body: { email, password } });
+  const login = async (username = 'admin') => {
+    const response = await request('/api/auth/login', { method: 'POST', body: { username, password } });
     assert.equal(response.status, 200);
     return response.headers.get('set-cookie').split(';')[0];
   };
@@ -51,12 +51,12 @@ test('catalog has full data, consistent details, safe search and useful missing-
 
 test('login uses opaque HttpOnly sessions, reload restores identity, and logout invalidates the session', async (t) => {
   const { db, request, login } = await fixture(t);
-  const wrong = await request('/api/auth/login', { method: 'POST', body: { email: 'aria@diceandlore.test', password: 'wrong' } });
+  const wrong = await request('/api/auth/login', { method: 'POST', body: { username: 'admin', password: 'wrong' } });
   assert.equal(wrong.status, 401);
   const cookie = await login();
   const user = (await (await request('/api/auth/me', { cookie })).json()).user;
   assert.equal(user.name, 'Aria');
-  assert.deepEqual(Object.keys(user).sort(), ['email', 'id', 'name']);
+  assert.deepEqual(Object.keys(user).sort(), ['username', 'id', 'name']);
   const stored = db.prepare('SELECT * FROM sessions').get();
   assert.notEqual(stored.token_hash, cookie.split('=')[1]);
   assert.match(db.prepare('SELECT password_hash FROM users WHERE id = ?').get(user.id).password_hash, /^scrypt:/);
@@ -64,7 +64,7 @@ test('login uses opaque HttpOnly sessions, reload restores identity, and logout 
   assert.equal(logout.status, 204);
   assert.deepEqual(await (await request('/api/auth/me', { cookie })).json(), { user: null });
   assert.equal(db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count, 0);
-  const fresh = await request('/api/auth/login', { method: 'POST', body: { email: 'aria@diceandlore.test', password } });
+  const fresh = await request('/api/auth/login', { method: 'POST', body: { username: 'admin', password } });
   assert.match(fresh.headers.get('set-cookie'), /HttpOnly/);
   assert.match(fresh.headers.get('set-cookie'), /SameSite=Lax/);
 });
@@ -77,19 +77,19 @@ test('expired sessions cannot authenticate', async (t) => {
   assert.equal((await request('/api/orders', { cookie })).status, 401);
 });
 
-test('registration validates passwords and duplicate email, then signs in a new customer', async (t) => {
+test('registration validates passwords and duplicate username, then signs in a new customer', async (t) => {
   const { db, request } = await fixture(t);
-  const body = { name: 'New Adventurer', email: 'new@adventurer.test', password: 'MyNewAdventure!24' };
+  const body = { name: 'New Adventurer', username: 'adventurer_test', password: 'MyNewAdventure!24' };
   assert.equal((await request('/api/auth/register', { method: 'POST', body: { ...body, password: 'tiny' } })).status, 400);
   const response = await request('/api/auth/register', { method: 'POST', body });
   assert.equal(response.status, 201);
   const cookie = response.headers.get('set-cookie').split(';')[0];
   assert.equal((await (await request('/api/auth/me', { cookie })).json()).user.name, body.name);
   assert.equal((await request('/api/auth/register', { method: 'POST', body })).status, 409);
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(body.email);
+  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username.trim().toLowerCase());
   assert.notEqual(user.password_hash, body.password);
   assert.equal(user.is_demo, 0);
-  assert.equal((await request('/api/auth/login', { method: 'POST', body: { email: body.email, password: body.password } })).status, 200);
+  assert.equal((await request('/api/auth/login', { method: 'POST', body: { username: body.username, password: body.password } })).status, 200);
 });
 
 test('login attempts are rate limited with a retry time', async (t) => {
@@ -154,7 +154,7 @@ test('API blocks foreign origins, malformed input, and returns JSON for missing 
 
 test('production excludes demo credentials even when a development database is reused', async (t) => {
   const { request } = await fixture(t, { production: true });
-  const response = await request('/api/auth/login', { method: 'POST', body: { email: 'aria@diceandlore.test', password } });
+  const response = await request('/api/auth/login', { method: 'POST', body: { username: 'admin', password } });
   assert.equal(response.status, 401);
   const db = openDatabase(':memory:', { demoAccounts: false });
   assert.equal(db.prepare('SELECT COUNT(*) AS count FROM users').get().count, 0);
@@ -242,10 +242,10 @@ test('safe logging rejects large bodies, redacts secrets, rate limits and switch
 
 test('weak hashing is limited to the demo target and disabling restores scrypt verification', async (t) => {
   const { db, request } = await fixture(t, { activeChallenges: ['weak-password'] });
-  const user = db.prepare("SELECT * FROM users WHERE email = 'aria@diceandlore.test'").get();
+  const user = db.prepare("SELECT * FROM users WHERE username = 'admin'").get();
   assert.match(user.password_hash, /^scrypt:/);
   assert.match(user.challenge_password_hash, /^[a-f0-9]{32}$/);
-  const body = { email: user.email, password };
+  const body = { username: user.username, password };
   assert.equal((await request('/api/auth/login', { method: 'POST', body })).status, 200);
   // Make the challenge credential differ, so this proves which branch is used.
   db.prepare('UPDATE users SET challenge_password_hash = ? WHERE id = ?').run('0'.repeat(32), user.id);
@@ -260,5 +260,5 @@ test('production ignores active challenge flags', async (t) => {
   const status = await (await request('/api/challenges/log-flood/status')).json();
   assert.equal(status.isActive, false);
   assert.equal((await request('/api/log.flood', { method: 'POST', body: { text: 'A'.repeat(50 * 1024) } })).status, 413);
-  assert.equal((await request('/api/auth/login', { method: 'POST', body: { email: 'aria@diceandlore.test', password } })).status, 401);
+  assert.equal((await request('/api/auth/login', { method: 'POST', body: { username: 'admin', password } })).status, 401);
 });

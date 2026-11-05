@@ -37,7 +37,7 @@ export function initializeDatabase(db, {
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY,
       name TEXT NOT NULL,
-      email TEXT NOT NULL COLLATE NOCASE UNIQUE,
+      username TEXT NOT NULL COLLATE NOCASE UNIQUE,
       password_hash TEXT NOT NULL,
       is_demo INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -102,17 +102,17 @@ export function initializeDatabase(db, {
   }).immediate();
 
   if (demoAccounts) {
-    const insert = db.prepare('INSERT OR IGNORE INTO users (name, email, password_hash, is_demo) VALUES (?, ?, ?, 1)');
-    for (const [name, email] of [['Aria', 'aria@diceandlore.test'], ['Finn', 'finn@diceandlore.test']]) {
-      if (!db.prepare('SELECT id FROM users WHERE email = ?').get(email)) {
-        insert.run(name, email, hashPasswordSync('RollForAdventure!24'));
+    const insert = db.prepare('INSERT OR IGNORE INTO users (name, username, password_hash, is_demo) VALUES (?, ?, ?, 1)');
+    for (const [name, username] of [['Admin', 'admin'], ['Test User', 'test_user']]) {
+      if (!db.prepare('SELECT id FROM users WHERE username = ?').get(username)) {
+        insert.run(name, username, hashPasswordSync('RollForAdventure!24'));
       }
     }
   }
   if (demoAccounts) {
     db.prepare(`UPDATE users SET challenge_password_hash = ?
-      WHERE email = 'aria@diceandlore.test' AND is_demo = 1 AND challenge_password_hash IS NULL`)
-      .run(createHash('md5').update('RollForAdventure!24').digest('hex'));
+      WHERE username = 'admin' AND is_demo = 1 AND challenge_password_hash IS NULL`)
+      .run(createHash('md5').update('BestPWChallenge!24').digest('hex'));
   }
   db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(Date.now());
   return db;
