@@ -132,14 +132,17 @@ export function initializeDatabase(db, {
     for (const [name, username, password] of [
       ['Aria', 'aria', 'RollForAdventure!24'],
       ['Finn', 'finn', 'RollForAdventure!24'],
-      ['Admin', 'admin', 'DungeonMaster!24'],
     ]) {
       if (!db.prepare('SELECT id FROM users WHERE username = ?').get(username)) {
         insert.run(name, username, hashPasswordSync(password));
       }
     }
   }
-  if (demoAccounts) {
+  if (demoAccounts || db.prepare("SELECT active FROM challenges WHERE id = 'weak-password'").get()?.active === 1) {
+    if (!db.prepare("SELECT id FROM users WHERE username = 'admin'").get()) {
+      db.prepare('INSERT INTO users (name, username, password_hash, is_demo) VALUES (?, ?, ?, 1)')
+        .run('Admin', 'admin', hashPasswordSync('DungeonMaster!24'));
+    }
     db.prepare(`UPDATE users SET challenge_password_hash = ?
       WHERE username = 'admin' AND is_demo = 1 AND challenge_password_hash IS NULL`)
       .run(createHash('md5').update('DungeonMaster!24').digest('hex'));

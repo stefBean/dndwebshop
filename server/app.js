@@ -37,6 +37,8 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     secure: production && !internalHttpTest,
     path: '/'
   };
+  const isPasswordChallengeUser = (user) => challenges.isActive('weak-password') &&
+    user?.is_demo === 1 && user.username.toLowerCase() === 'admin' && !!user.challenge_password_hash;
   const dummyHash = hashPasswordSync(randomBytes(24).toString('hex'));
   const attempts = new Map();
 
@@ -85,7 +87,7 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     if (token) {
       const user = db.prepare(`SELECT users.* FROM sessions JOIN users ON users.id = sessions.user_id
         WHERE sessions.token_hash = ? AND sessions.expires_at > ?`).get(tokenHash(token), Date.now());
-      if (user && (allowDemoAccounts || !user.is_demo)) {
+      if (user && (allowDemoAccounts || !user.is_demo || isPasswordChallengeUser(user))) {
         req.user = publicUser(user);
       }
     }
@@ -158,11 +160,11 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
       return res.status(400).json({ error: 'Enter a valid username and password.' });
     }
     const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username.trim().toLowerCase());
-    const weakChallenge = challenges.isActive('weak-password') && user?.is_demo === 1 && user.username.toLowerCase() === 'admin' && !!user.challenge_password_hash;
+    const weakChallenge = isPasswordChallengeUser(user);
     const verified = weakChallenge
       ? challenges.verifyDemoPassword(password, user.challenge_password_hash)
       : await verifyPassword(password, user?.password_hash || dummyHash);
-    if (!user || !verified || (!allowDemoAccounts && user.is_demo)) {
+    if (!user || !verified || (!allowDemoAccounts && user.is_demo && !weakChallenge)) {
       return res.status(401).json({ error: 'That username and password do not match.' });
     }
     startSession(req, res, user);

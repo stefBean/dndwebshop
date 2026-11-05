@@ -77,7 +77,7 @@ In development only, fictitious test accounts are available:
 
 Customers can also create their own accounts. Passwords require 12–128 characters with uppercase, lowercase, and a number. Passwords are salted and hashed with scrypt; raw passwords are never stored. Sessions use random opaque tokens in HttpOnly, SameSite=Lax cookies. Only token hashes are stored server-side. Sessions expire after 24 hours and are invalidated on logout. Login and registration share a limit of eight attempts per IP in two minutes.
 
-With `NODE_ENV=production`, demo accounts are not created and existing demo accounts cannot authenticate. Production session cookies require HTTPS. Run behind an HTTPS reverse proxy that preserves the request Host and Origin. The application rejects cross-origin mutation requests and provides no cross-origin API grant. Configure deployment ingress and TLS for the actual hostname before publishing a public instance.
+With `NODE_ENV=production`, normal demo accounts are not created or allowed to authenticate. The explicitly enabled weak-password exercise creates and permits only its test admin target while active. Production session cookies require HTTPS. Run behind an HTTPS reverse proxy that preserves the request Host and Origin. The application rejects cross-origin mutation requests and provides no cross-origin API grant. Configure deployment ingress and TLS for the actual hostname before publishing a public instance.
 
 ## Cart and orders
 
@@ -99,8 +99,9 @@ npm run challenge:set -- log-flood false
 npm run challenge:set -- weak-password false
 ```
 
-No restart is required. `NODE_ENV=production` always uses safe behavior,
-regardless of stored flags. Flags cannot be changed through public HTTP requests.
+No restart is required. The weak-password flag also works with
+`NODE_ENV=production` on the deployed training shop. The logging challenge remains
+disabled in production. Flags cannot be changed through public HTTP requests.
 Use the same `DB_PATH` as the running server.
 
 Inactive logging accepts at most 10 KB, writes metadata without headers or body,
@@ -125,7 +126,15 @@ The developer enables the exercise from `server/`:
 npm run challenge:set -- weak-password true
 ```
 
-Participants open the shop’s **Sign in** page. The **Password challenge** panel
+On the live Docker deployment, the operator enables the exercise using:
+
+```sh
+docker compose exec shop npm run challenge:set -- weak-password true
+```
+
+This creates the test admin if needed, even when normal demo accounts are disabled.
+The running shop sees the change immediately. Participants open the deployed
+shop’s **Sign in** page. The **Password challenge** panel
 shows the admin username, hash algorithm and password hash. **Open hash response**
 opens the JSON directly in a browser tab. Participants can also inspect the
 `weak-password/hash` request in Developer Tools → Network when loading the page.
@@ -144,8 +153,8 @@ Only the seeded `is_demo` admin account is exposed; a regular account named
 `admin` is never overwritten or exposed. This is a test account, with no added
 administrative privileges. Other users' hashes and the preserved scrypt hash
 are never returned. The response is not cached. Disabling the flag immediately
-returns the endpoint to 404 and restores scrypt verification. Production always
-returns 404, even if the database flag is enabled.
+returns the endpoint to 404 and restores scrypt verification in development. When normal demo accounts are disabled in production, disabling the exercise
+also blocks the test admin login and existing test admin sessions.
 
 ## Security challenge: CWE-779 logging of excessive data
 

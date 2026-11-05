@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { once } from 'node:events';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
@@ -255,7 +257,7 @@ test('weak hashing is limited to the admin demo target and disabling restores sc
   assert.equal(db.prepare('SELECT password_hash FROM users WHERE id = ?').get(user.id).password_hash, user.password_hash);
 });
 
-test('production ignores active challenge flags', async (t) => {
+test('production still blocks the logging challenge and unrelated demo credentials', async (t) => {
   const { request } = await fixture(t, { production: true, activeChallenges: ['weak-password', 'log-flood'] });
   const status = await (await request('/api/challenges/log-flood/status')).json();
   assert.equal(status.isActive, false);
@@ -333,11 +335,39 @@ test('active weak-password challenge anonymously exposes only the admin test has
   assert.match(db.prepare("SELECT password_hash FROM users WHERE username = 'admin'").get().password_hash, /^scrypt:/);
 });
 
-test('password hash disclosure is unavailable in production and without a demo admin', async (t) => {
-  const production = await fixture(t, { production: true, activeChallenges: ['weak-password'] });
-  assert.equal((await production.request('/api/challenges/weak-password/hash')).status, 404);
-  assert.equal((await production.request('/api/auth/login', { method: 'POST', body: { username: 'admin', password: 'DungeonMaster!24' } })).status, 401);
+test('password hash disclosure is unavailable without a demo admin', async (t) => {
   const development = await fixture(t, { activeChallenges: ['weak-password'] });
   development.db.prepare("UPDATE users SET is_demo = 0 WHERE username = 'admin'").run();
   assert.equal((await development.request('/api/challenges/weak-password/hash')).status, 404);
+});
+
+
+test('live production challenge can be enabled, completed and disabled without restarting', async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'dice-live-password-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const filename = path.join(directory, 'shop.db');
+  const { db, request } = await fixture(t, { filename, production: true, demoAccounts: false });
+  const endpoint = '/api/challenges/weak-password/hash';
+  assert.equal((await request(endpoint)).status, 404);
+  assert.equal(db.prepare('SELECT COUNT(*) AS count FROM users').get().count, 0);
+  const setActive = (active) => promisify(execFile)(process.execPath, ['challenge-state.js', 'weak-password', String(active)], {
+    cwd: path.resolve(import.meta.dirname, '..'),
+    env: { ...process.env, NODE_ENV: 'production', INTERNAL_HTTP_TEST: 'false', ENABLE_DEMO_ACCOUNTS: 'false', DB_PATH: filename },
+  });
+  await setActive(true);
+  const response = await request(endpoint);
+  assert.equal(response.status, 200);
+  const target = await response.json();
+  assert.equal(target.username, 'admin');
+  assert.equal(target.algorithm, 'md5');
+  assert.equal(db.prepare('SELECT COUNT(*) AS count FROM users').get().count, 1);
+  const login = await request('/api/auth/login', { method: 'POST', body: { username: 'admin', password: 'DungeonMaster!24' } });
+  assert.equal(login.status, 200);
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  assert.equal((await (await request('/api/auth/me', { cookie })).json()).user.username, 'admin');
+  assert.equal((await request('/api/orders', { cookie })).status, 200);
+  await setActive(false);
+  assert.equal((await request(endpoint)).status, 404);
+  assert.equal((await (await request('/api/auth/me', { cookie })).json()).user, null);
+  assert.equal((await request('/api/auth/login', { method: 'POST', body: { username: 'admin', password: 'DungeonMaster!24' } })).status, 401);
 });
