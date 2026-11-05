@@ -67,10 +67,10 @@ Refresh the shop after importing or editing the database. Catalogue categories a
 
 In development only, two fictitious customer accounts are available:
 
-| Email | Password |
+| Username | Password |
 | --- | --- |
-| `aria@diceandlore.test` | `RollForAdventure!24` |
-| `finn@diceandlore.test` | `RollForAdventure!24` |
+| `aria` | `RollForAdventure!24` |
+| `finn` | `RollForAdventure!24` |
 
 Customers can also create their own accounts. Passwords require 12–128 characters with uppercase, lowercase, and a number. Passwords are salted and hashed with scrypt; raw passwords are never stored. Sessions use random opaque tokens in HttpOnly, SameSite=Lax cookies. Only token hashes are stored server-side. Sessions expire after 24 hours and are invalidated on logout. Login and registration share a limit of eight attempts per IP in two minutes.
 
@@ -177,8 +177,8 @@ Backend integration tests run against isolated temporary databases and cover pro
 | GET | `/api/products` | Full catalogue; optional `search` query |
 | GET | `/api/products/:id` | Product details or 404 |
 | GET | `/api/auth/me` | `{ user }`, null when signed out |
-| POST | `/api/auth/login` | `{ email, password }` |
-| POST | `/api/auth/register` | `{ name, email, password }` |
+| POST | `/api/auth/login` | `{ username, password }` |
+| POST | `/api/auth/register` | `{ name, username, password }` |
 | POST | `/api/auth/logout` | Invalidate session, return 204 |
 | GET | `/api/orders` | Signed-in customer's order history |
 | POST | `/api/orders` | `{ items: [{ product_id, quantity }] }`; create simulated order |
@@ -192,4 +192,10 @@ JSON mutation requests must use `Content-Type: application/json`, except the bod
 
 The monochrome Dungeons & Dragons dragon-ampersand symbol is provided by [Simple Icons](https://github.com/simple-icons/simple-icons/blob/develop/icons/dungeonsanddragons.svg) under CC0 and is stored locally in `client/public/images/dnd-symbol.svg`. The shop wordmark is a local typographic composition inspired by the Dungeons & Dragons identity, with “Shop” added. Product illustrations remain in color.
 
-The legacy demo-account email addresses and `dice-and-lore.cart.v1` storage key are retained for compatibility with existing accounts and saved carts.
+Usernames contain 3–32 letters, numbers, dots, underscores or hyphens and are
+case-insensitive. Demo usernames are `aria` and `finn`. Existing databases are
+migrated automatically: email-based logins become usernames using the part before
+`@`, with unsupported characters replaced by hyphens. Short values receive a
+`user-` prefix; collisions receive a numeric suffix. Account IDs, passwords,
+sessions and orders are preserved. The `dice-and-lore.cart.v1` storage key remains
+unchanged for saved-cart compatibility.
