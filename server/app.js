@@ -9,7 +9,7 @@ import { createChallengeRouter } from './challenge-log.js';
 const cookieName = 'dice_lore_session';
 const sessionLifetime = 24 * 60 * 60 * 1000;
 const publicUser = (user) => ({ id: user.id, name: user.name, username: user.username });
-const validUsername = (value) => typeof value === 'string' && /^[a-z0-9_.-]{1,32}$/i.test(value.trim());
+const validUsername = (value) => typeof value === 'string' && /^[a-z0-9_.-]{3,32}$/i.test(value.trim());
 const validId = (value) => /^\d+$/.test(String(value)) && Number.isSafeInteger(Number(value)) && Number(value) > 0;
 
 function cookieToken(req) {
@@ -149,8 +149,8 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
 
   app.post('/api/auth/register', authLimit, async (req, res) => {
     const { name, username, password } = req.body || {};
-    if (!validUsername(username)) return res.status(400).json({ error: 'Enter a name between 1 and 32 characters.' });
-    if (typeof username !== 'string' || username.trim().length < 1 || username.trim().length > 30 || !/^[a-zA-Z0-9_]+$/.test(username.trim())) return res.status(400).json({ error: 'Username between 1-30' });
+    if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 80) return res.status(400).json({ error: 'Enter a name between 2 and 80 characters.' });
+    if (!validUsername(username)) return res.status(400).json({ error: 'Use a username of 3–32 letters, numbers, dots, underscores or hyphens.' });
     if (typeof password !== 'string' || password.length < 12 || password.length > 128 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
       return res.status(400).json({ error: 'Use 12–128 characters with uppercase, lowercase and a number.' });
     }  

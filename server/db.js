@@ -15,6 +15,31 @@ export function resolveDatabasePath(filename = process.env.DB_PATH || DEFAULT_DB
   return filename === ':memory:' ? filename : path.resolve(serverDirectory, filename);
 }
 
+function migrateUsernames(db) {
+  const columns = new Set(db.pragma('table_info(users)').map((column) => column.name));
+  if (!columns.has('email') || columns.has('username')) return;
+  db.transaction(() => {
+    db.exec('ALTER TABLE users RENAME COLUMN email TO username');
+    const users = db.prepare('SELECT id, username FROM users ORDER BY id').all();
+    const valid = (value) => /^[a-z0-9_.-]{3,32}$/i.test(value);
+    const taken = new Set(users.filter((user) => valid(user.username)).map((user) => user.username.toLowerCase()));
+    const update = db.prepare('UPDATE users SET username = ? WHERE id = ?');
+    for (const user of users) {
+      if (valid(user.username)) continue;
+      let base = user.username.split('@')[0].toLowerCase().replace(/[^a-z0-9_.-]/g, '-').slice(0, 32);
+      if (base.length < 3) base = `user-${base}`;
+      let username = base;
+      let suffix = 1;
+      while (taken.has(username)) {
+        const ending = `-${suffix++}`;
+        username = base.slice(0, 32 - ending.length) + ending;
+      }
+      update.run(username, user.id);
+      taken.add(username);
+    }
+  }).immediate();
+}
+
 
 export function initializeDatabase(db, {
   seedProducts = true,
@@ -84,6 +109,7 @@ export function initializeDatabase(db, {
     if (!columns.has(name)) db.exec(`ALTER TABLE products ADD COLUMN ${name} ${definition}`);
   }
 
+  migrateUsernames(db);
   const userColumns = new Set(db.pragma('table_info(users)').map((column) => column.name));
   if (!userColumns.has('challenge_password_hash')) {
     db.exec('ALTER TABLE users ADD COLUMN challenge_password_hash TEXT');
@@ -103,7 +129,7 @@ export function initializeDatabase(db, {
 
   if (demoAccounts) {
     const insert = db.prepare('INSERT OR IGNORE INTO users (name, username, password_hash, is_demo) VALUES (?, ?, ?, 1)');
-    for (const [name, username] of [['Admin', 'admin'], ['Test User', 'test_user']]) {
+    for (const [name, username] of [['Aria', 'aria'], ['Finn', 'finn']]) {
       if (!db.prepare('SELECT id FROM users WHERE username = ?').get(username)) {
         insert.run(name, username, hashPasswordSync('RollForAdventure!24'));
       }
@@ -111,8 +137,8 @@ export function initializeDatabase(db, {
   }
   if (demoAccounts) {
     db.prepare(`UPDATE users SET challenge_password_hash = ?
-      WHERE username = 'admin' AND is_demo = 1 AND challenge_password_hash IS NULL`)
-      .run(createHash('md5').update('BestPWChallenge!24').digest('hex'));
+      WHERE username = 'aria' AND is_demo = 1 AND challenge_password_hash IS NULL`)
+      .run(createHash('md5').update('RollForAdventure!24').digest('hex'));
   }
   db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(Date.now());
   return db;

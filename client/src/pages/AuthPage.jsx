@@ -110,14 +110,15 @@ export default function AuthPage({ mode = "login" }) {
                   label="Username"
                   id="account-username"
                   name="username"
-                  type="username"
+                  type="text"
                   autoComplete="username"
                   required
-                  minLength={1}
+                  minLength={3}
                   maxLength={32}
+                  pattern="[a-zA-Z0-9_.\-]{3,32}"
                   value={username}
                   onChange={(event) => setUsername(event.target.value)}
-                  placeholder="your-adventure-name"
+                  placeholder="your-adventurer-name"
                   disabled={submitting}
                 />
                 <div>
@@ -210,9 +211,9 @@ export default function AuthPage({ mode = "login" }) {
                     </Button>
                   </div>
                   <p className="mt-4 break-all font-mono text-[10px] leading-6 text-muted">
-                    admin
+                    aria
                     <br />
-                    test_user
+                    finn
                     <br />
                     <span className="text-ink/80">
                       Password: RollForAdventure!24
