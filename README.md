@@ -1,10 +1,5 @@
 # Dungeons & Dragons Shop
 
-A React and Tailwind fantasy webshop with reusable product cards, search, product details, a persistent cart, customer accounts, and simulated orders. The Express API stores products, password hashes, sessions, and orders in SQLite. The CWE-779 logging challenge is isolated from the shop API; see [Security challenge](#security-challenge-cwe-779-logging-of-excessive-data).
-
-
-
-
 ## Local development
 
 Use Node.js 24 (the configured cloud runtime) or a compatible current Node.js release meeting the package engine requirements.
