@@ -203,7 +203,7 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
   app.post('/api/auth/register', authLimit, async (req, res) => {
     const { name, username, password } = req.body || {};
     if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 80) return res.status(400).json({ error: 'Enter a name between 2 and 80 characters.' });
-    if (typeof username !== 'string' || !/^[a-zA-Z0-9_.-]{1,32}$/.test(username.trim())) return res.status(400).json({ error: 'Enter a valid username.' });
+    if (!validUsername(username)) return res.status(400).json({ error: 'Enter a valid username.' });
     if (typeof password !== 'string' ||password.length < 12 ||password.length > 128 ||!/[a-z]/.test(password) ||!/[A-Z]/.test(password) ||!/\d/.test(password)) {return res.status(400).json({error: 'Use 12–128 characters with uppercase, lowercase, and a number.',});
     }
     const normalized = username.trim().toLowerCase();
