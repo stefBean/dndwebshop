@@ -162,6 +162,9 @@ sudo docker compose exec shop npm run challenge:set -- log-flood true
 ```
 
 **DOM-XSS**
+```bash
+sudo docker compose exec shop npm run challenge:set -- xss true
+```
 
 The preview is available through the product search at `/products`. No additional activation is needed for the current preview implementation.
 
@@ -170,6 +173,7 @@ The preview is available through the product search at `/products`. No additiona
 ```bash
 sudo docker compose exec shop npm run challenge:set -- weak-password false
 sudo docker compose exec shop npm run challenge:set -- log-flood false
+sudo docker compose exec shop npm run challenge:set -- xss false
 ```
 
 Disabling a challenge does not necessarily reset its stored progress.
