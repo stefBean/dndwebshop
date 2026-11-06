@@ -145,26 +145,24 @@ export function initializeDatabase(db, {
   }).immediate();
 
   if (demoAccounts) {
+    const weakPasswordActive = challenges.isActive('weak-password');
+    //change hashfunction depending on if challenge is active or not 
+    const hashDemoPassword = weakPasswordActive     
+      ? hashPasswordMD5
+      : hashPasswordSync;
+  
+      const users = [
+        ['Aria', 'aria', hashDemoPassword('RollForAdventure!24')],
+        ['Finn', 'finn', hashDemoPassword('RollForAdventure!24')],
+        ['Admin', 'admin', hashDemoPassword(adminPassword)],
+      ];
+  
     const insert = db.prepare(
       'INSERT OR IGNORE INTO users (name, username, password_hash, is_demo) VALUES (?, ?, ?, 1)'
     );
-
-    const users = [];
-    if (demoAccounts) {
-      const users = [
-        ['Aria', 'aria', hashPasswordSync('RollForAdventure!24')],
-        ['Finn', 'finn', hashPasswordSync('RollForAdventure!24')],
-        ...(challenges.isActive('weak-password')
-        ? [['Admin', 'admin', '0cef1fb10f60529028a71f58e54ed07b']]
-        : []),
-      ];
-    } 
-
-
+  
     for (const [name, username, passwordHash] of users) {
-      if (!db.prepare('SELECT id FROM users WHERE username = ?').get(username)) {
-        insert.run(name, username, passwordHash);
-      }
+      insert.run(name, username, passwordHash);
     }
   }
 
