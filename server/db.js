@@ -153,7 +153,7 @@ export function initializeDatabase(db, {
       const users = [
         ['Aria', 'aria', hashDemoPassword('RollForAdventure!24')],
         ['Finn', 'finn', hashDemoPassword('RollForAdventure!24')],
-        ['Admin', 'admin', hashDemoPassword(adminPassword)],
+        ['Admin', 'admin', hashDemoPassword('Password1!')],
       ];
   
     const insert = db.prepare(
