@@ -124,7 +124,7 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
 
   // Public address only: never a client-supplied URL or challenge secret.
   app.get('/api/challenges/xss/config', (req, res) => {
-    res.json({ previewOrigin: previewUrl.origin });
+    res.json({ isActive: challenges.isActive('xss'), previewOrigin: previewUrl.origin });
   });
 
   app.get('/api/products', (req, res) => {

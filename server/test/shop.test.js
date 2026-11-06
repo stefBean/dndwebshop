@@ -213,7 +213,7 @@ test('database initialization is repeatable and preserves custom catalogue data 
 
 test('challenge flags default to safe and initialization preserves an explicit selection', async (t) => {
   const { db } = await fixture(t);
-  assert.deepEqual(db.prepare('SELECT active FROM challenges').all(), [{ active: 0 }, { active: 0 }]);
+  assert.deepEqual(db.prepare('SELECT active FROM challenges').all(), [{ active: 0 }, { active: 0 }, { active: 0 }]);
   db.prepare("UPDATE challenges SET active = 1 WHERE id = 'log-flood'").run();
   initializeDatabase(db);
   assert.equal(db.prepare("SELECT active FROM challenges WHERE id = 'log-flood'").get().active, 1);
