@@ -4,8 +4,9 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { importProducts } from './products.js';
-import { hashPasswordSync } from './security.js';
+import { hashPasswordSync, hashPasswordMD5, hashPasswordMD5Sync } from './security.js';
 import { createChallengeState } from './challenges.js';
+
 
 const serverDirectory = path.dirname(fileURLToPath(import.meta.url));
 const starterProductsFile = path.join(serverDirectory, 'data/products.json');
@@ -147,7 +148,7 @@ export function initializeDatabase(db, {
     const weakPasswordActive = challenges.isActive('weak-password');
     //change hashfunction depending on if challenge is active or not 
     const hashDemoPassword = weakPasswordActive     
-      ? hashPasswordMD5
+      ? hashPasswordMD5Sync
       : hashPasswordSync;
   
       const users = [
