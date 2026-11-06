@@ -1,4 +1,5 @@
 import express from 'express';
+import { serveXssPreview } from './xss-preview.js';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { hashPassword, hashPasswordSync, verifyPassword, tokenHash } from './security.js';
@@ -20,14 +21,13 @@ function cookieToken(req) {
   return /^[a-f0-9]{64}$/.test(token || '') ? token : null;
 }
 
-export function createApp(db, { production = process.env.NODE_ENV === 'production', challengeOptions = {}, xssPreviewOrigin = process.env.XSS_PREVIEW_ORIGIN || 'http://127.0.0.1:8081' } = {}) {
-  const previewUrl = new URL(xssPreviewOrigin);
-  if (!['http:', 'https:'].includes(previewUrl.protocol) || previewUrl.origin !== xssPreviewOrigin) {
-    throw new Error('XSS_PREVIEW_ORIGIN must be an HTTP(S) origin without a path.');
-  }
+export function createApp(db, { production = process.env.NODE_ENV === 'production', challengeOptions = {} } = {}) {
   const app = express();
   const challenges = createChallengeState(db, { production });
   app.disable('x-powered-by');
+  // Fixed static response, before shop CSP, parsers and session lookup.
+  // HTTP sandbox also protects direct navigation outside the iframe.
+  app.use('/xss-preview', serveXssPreview);
 
   const internalHttpTest = process.env.INTERNAL_HTTP_TEST === 'true';
   const allowDemoAccounts =
@@ -46,7 +46,7 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     res.set({
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'strict-origin-when-cross-origin',
-      'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-src " + previewUrl.origin + "; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+      'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
     });
     if (req.path.startsWith('/api/')) res.set('Cache-Control', 'no-store');
     next();
@@ -127,7 +127,7 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
 
   // Public address only: never a client-supplied URL or challenge secret.
   app.get('/api/challenges/xss/config', (req, res) => {
-    res.json({ previewOrigin: previewUrl.origin });
+    res.json({ previewPath: '/xss-preview/' });
   });
 
   app.get('/api/products', (req, res) => {

@@ -113,8 +113,9 @@ Aria, Finn and registered customers retain their normal scrypt credentials.
 The target is created only by the local activation command; existing accounts
 are never adopted or overwritten. Disabling selects Argon2id and closes its backup.
 
-The XSS exercise is implemented in the isolated `challenge-xss` preview service;
-see [its operating instructions](challenge-xss/README.md).
+The XSS exercise is a fixed HTTP document served by Express at `/xss-preview/`,
+isolated by iframe sandbox and its own HTTP CSP sandbox. No second service, DNS
+name or port is required; see [its operating instructions](challenge-xss/README.md).
 
 ## Password challenge: CWE-916
 
@@ -277,16 +278,27 @@ docker compose exec shop npm run challenge:set -- weak-password true
 docker compose exec shop npm run challenge:set -- log-flood true
 ~~~
 
-XSS has no switch: compose starts xss-preview alongside shop. Locally open
-http://localhost:8080/products, and use http://localhost:8080/challenges for tasks.
-The preview is on http://127.0.0.1:8081 (a deliberately different cookie host).
-For student access over the university network, configure SHOP_BIND_IP,
-XSS_BIND_IP, XSS_PREVIEW_ORIGIN and XSS_SHOP_ORIGINS for the assigned internal
-addresses and two distinct browser-reachable hosts. Loopback URLs on a student's
-machine do not point at the university server. Restrict access to the authorized
-network; use matching HTTPS origins if terminating TLS. Recreate containers after
-changing these environment values. Keep the existing preview sandbox, CSP,
-network isolation and resource/storage limits.
+XSS has no switch. All pages, APIs and the sandboxed preview use the same address.
+For the university VM, set SHOP_BIND_IP=10.13.26.24 in the untracked .env (or export
+it in the operator shell), then run docker compose up --build -d --remove-orphans.
+Keep the same Compose project name/directory so the existing shop-data volume is reused.
+This removes the retired xss-preview container without deleting the database volume.
+Open http://10.13.26.24:8080/products and http://10.13.26.24:8080/challenges.
+No XSS_* variables, DNS names, hosts-file entries or published port 8081 are needed.
+Remove obsolete XSS_* settings from the operator environment. Restrict port 8080 to
+the authorized university/VPN network. Keep CHALLENGE_ADMIN_TOKEN private and retain
+its existing value. Challenge activation flags and database data persist; the volatile
+challenge log is cleared when the shop container is recreated.
+
+The fixed /xss-preview/ response is served before authentication and the normal shop
+CSP; it never reflects cookies, Authorization, sessions or query text into HTML.
+The browser reads the search parameter and deliberately assigns innerHTML inside
+sandbox=allow-scripts, without allow-same-origin. An HTTP sandbox also protects direct
+navigation. The shop's script-src remains self; inline handlers are allowed only in
+the preview. No internal service connection or extra Docker network is needed.
+Browser requests to the same host can still carry cookies to Express; they are not
+read or exposed by the preview handler. Sandbox/CSP are not a universal network or
+browser CPU quota; see the preview instructions for limits and regression checks.
 
 ### Status and individual resets
 

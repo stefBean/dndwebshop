@@ -9,7 +9,6 @@ import path from 'node:path';
 import { createServer } from 'node:net';
 import { openDatabase } from '../server/db.js';
 import { createApp } from '../server/app.js';
-import { createPreviewServer } from '../challenge-xss/server.mjs';
 import { resetShop, resetVersion } from '../server/reset-shop.js';
 import { createChallengeLog } from '../server/challenge-log.js';
 import { setPasswordChallengeActive } from '../server/challenge-password.js';
@@ -20,12 +19,11 @@ const reserve = createServer().listen(0, '127.0.0.1');
 await once(reserve, 'listening');
 const port = reserve.address().port;
 await new Promise(resolve => reserve.close(resolve));
-const base = 'http://localhost:' + port;
-const preview = createPreviewServer({ shopOrigins: base }).listen(0, '127.0.0.1');
-await once(preview, 'listening');
-const previewOrigin = 'http://127.0.0.1:' + preview.address().port;
+const base = 'http://127.0.0.1:' + port;
+const previewRequests = [];
 const start = async () => {
-  const server = createApp(db, { xssPreviewOrigin: previewOrigin, challengeOptions: { logPath: log.logPath, adminToken: 'test-only' } }).listen(port, '127.0.0.1');
+  const server = createApp(db, { challengeOptions: { logPath: log.logPath, adminToken: 'test-only' } }).listen(port, '127.0.0.1');
+  server.on('request', req => { const url=new URL(req.originalUrl || req.url, base); if (url.pathname === '/api/auth/me' && url.searchParams.has('xss-probe')) previewRequests.push(url.href); });
   await once(server, 'listening');
   return server;
 };
@@ -152,28 +150,76 @@ try {
   // Verify JS execution inside the real preview, not just submission of a payload.
   await a.go('/products');
   await a.wait('document.querySelectorAll("article").length>0');
-  const payload = "<svg onload=\"document.getElementById('result').textContent='US08 browser proof: JavaScript executed'\"></svg>";
+  await a.evaluate('localStorage.setItem("xss-secret","shop-storage-secret");document.cookie="xss_canary=shop-cookie-secret; Path=/; SameSite=Lax"');
+  // Control request proves that the server-side network observer is effective.
+  await fetch(base+'/api/auth/me?xss-probe');
+  assert.equal(previewRequests.length,1);
+  previewRequests.length=0;
+  assert.equal(await a.evaluate(`(()=>{const script=document.createElement('script');script.textContent="document.body.dataset.unsafeScript='executed'";document.body.append(script);const button=document.createElement('button');button.setAttribute('onclick',"document.body.dataset.unsafeHandler='executed'");document.body.append(button);button.click();script.remove();button.remove();return Boolean(document.body.dataset.unsafeScript||document.body.dataset.unsafeHandler)})()`),false,'Normal shop CSP must still block inline scripts and handlers');
+  const sessionCount = db.prepare('SELECT count(*) AS n FROM sessions').get().n;
+  const probe = `(async()=>{
+    const result={executed:true};
+    for(const [name,read] of Object.entries({parent:()=>parent.document.body, cookie:()=>document.cookie, storage:()=>localStorage.getItem('xss-secret'), sessionStorage:()=>sessionStorage.length})){
+      try{read();result[name]='ACCESSIBLE'}catch(error){result[name]=error.name}
+    }
+    try{await fetch('${base}/api/auth/me?xss-probe',{credentials:'include'});result.fetch='ACCESSIBLE'}catch{result.fetch='blocked'}
+    document.getElementById('result').textContent=JSON.stringify(result);
+  })()`;
+  const payload = '<svg onload="' + probe.replaceAll('"','&quot;') + '"></svg>';
   await a.evaluate('(()=>{const input=document.querySelector("input[type=search]");Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set.call(input,' + JSON.stringify(payload) + ');input.dispatchEvent(new Event("input",{bubbles:true}));})()');
   await a.wait('document.querySelector("iframe") !== null');
-  let frameTarget;
-  for (let attempt = 0; attempt < 100; attempt++) {
-    frameTarget = (await send('Target.getTargets')).targetInfos.find(target => target.type === 'iframe' && target.url.startsWith(previewOrigin));
-    if (frameTarget) break;
-    await new Promise(resolve => setTimeout(resolve, 100));
+  assert.equal(await a.evaluate('document.querySelector("iframe").getAttribute("sandbox")'), 'allow-scripts');
+  assert.ok(await a.evaluate('document.querySelector("iframe").src.startsWith(location.origin+"/xss-preview/")'));
+  async function frameProof() {
+    for(let attempt=0;attempt<100;attempt++) {
+      const target=(await send('Target.getTargets')).targetInfos.find(t=>t.type==='iframe' && t.url.startsWith(base+'/xss-preview/'));
+      if(target) {
+        const sid=(await send('Target.attachToTarget',{targetId:target.targetId,flatten:true})).sessionId;
+        const result=await send('Runtime.evaluate',{expression:"document.getElementById('result')?.textContent",returnByValue:true},sid);
+        if(result.result.value?.startsWith('{')) return JSON.parse(result.result.value);
+      }
+      const {frameTree}=await send('Page.getFrameTree',{},a.sessionId);
+      const frame=frameTree.childFrames?.find(child=>child.frame.url.startsWith(base+'/xss-preview/'))?.frame;
+      if(frame) {
+        try {
+          const {executionContextId}=await send('Page.createIsolatedWorld',{frameId:frame.id,worldName:'read-proof'},a.sessionId);
+          const result=await send('Runtime.evaluate',{expression:"document.getElementById('result')?.textContent",contextId:executionContextId,returnByValue:true},a.sessionId);
+          const text=result.result.value;
+          if(text?.startsWith('{')) return JSON.parse(text);
+        } catch { /* Frame may still be navigating. */ }
+      }
+      await new Promise(resolve=>setTimeout(resolve,100));
+    }
+    throw new Error('XSS browser proof not produced: '+JSON.stringify(await send('Page.getFrameTree',{},a.sessionId))+' TARGETS '+JSON.stringify(await send('Target.getTargets')));
   }
-  assert.ok(frameTarget, 'XSS frame target');
-  const frameSession = (await send('Target.attachToTarget', { targetId: frameTarget.targetId, flatten: true })).sessionId;
-  const proof = await send('Runtime.evaluate', { expression: "document.getElementById('result').textContent", returnByValue: true }, frameSession);
-  assert.equal(proof.result.value, 'US08 browser proof: JavaScript executed');
-  console.log('PASS: independent browsers and same-origin tab, cart reload/focus/storage reset, stale cart rejection, unrelated storage retained, challenge statuses, post-reset login/cart/checkout, actual XSS execution.');
+  const proof=await frameProof();
+  assert.deepEqual(proof,{executed:true,parent:'SecurityError',cookie:'SecurityError',storage:'SecurityError',sessionStorage:'SecurityError',fetch:'blocked'});
+  assert.deepEqual(previewRequests,[], 'CSP must block the request before it reaches the API');
+  assert.equal(await a.evaluate('localStorage.getItem("xss-secret")'),'shop-storage-secret');
+  assert.ok(await a.evaluate('document.cookie.includes("xss_canary=shop-cookie-secret")'));
+  assert.equal(db.prepare('SELECT count(*) AS n FROM sessions').get().n,sessionCount);
+  assert.equal(db.prepare('SELECT count(*) AS n FROM orders').get().n,1);
+  // A direct-open preview has no iframe attribute: only its HTTP sandbox protects it.
+  const direct=await tab(contextA);
+  await send('Page.navigate',{url:base+'/xss-preview/?search='+encodeURIComponent(payload)},direct.sessionId);
+  await direct.wait('document.getElementById("result")?.textContent.startsWith("{")');
+  const directProof=JSON.parse(await direct.evaluate('document.getElementById("result").textContent'));
+  for(const key of ['cookie','storage','sessionStorage']) assert.equal(directProof[key],'SecurityError');
+  assert.equal(directProof.executed,true);
+  assert.equal(directProof.fetch,'blocked');
+  assert.deepEqual(previewRequests,[]);
+  // Reset the search, then prove the same payload executes in a fresh frame.
+  await a.evaluate('Array.from(document.querySelectorAll("button")).find(b=>b.textContent==="Clear search").click()');
+  await a.wait('document.querySelector("iframe")===null && document.querySelectorAll("article").length>0');
+  await a.evaluate('(()=>{const input=document.querySelector("input[type=search]");Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set.call(input,' + JSON.stringify(payload) + ');input.dispatchEvent(new Event("input",{bubbles:true}));})()');
+  assert.deepEqual(await frameProof(),proof);
+  console.log('PASS: independent browsers and same-origin tab, cart reload/focus/storage reset, stale cart rejection, unrelated storage retained, challenge statuses, post-reset login/cart/checkout, same-IP XSS execution, parent/cookie/localStorage/sessionStorage isolation, CSP blocks credentialed API fetch before network, HTTP sandbox on direct-open preview, repeatable search reset.');
   await send('Browser.close');
 } finally {
   socket?.close();
   chrome.kill();
   server.closeAllConnections();
   await new Promise(resolve => server.close(resolve));
-  preview.closeAllConnections();
-  await new Promise(resolve => preview.close(resolve));
   db.close();
   if (!temporary.startsWith(path.join(os.tmpdir(), 'chs-browser-'))) throw new Error('Unexpected cleanup path');
   await rm(temporary, { recursive: true, force: true, maxRetries: 20, retryDelay: 200 });

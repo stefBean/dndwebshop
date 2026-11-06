@@ -329,7 +329,7 @@ test('production logging follows its own explicit switch and preserves XSS confi
   db.prepare("UPDATE challenges SET active = 0 WHERE id = 'log-flood'").run();
   assert.equal((await (await request('/api/challenges/log-flood/status')).json()).isActive, false);
   assert.equal((await request('/api/log.flood', { method: 'POST', body: { text: 'A'.repeat(50 * 1024) } })).status, 413);
-  assert.deepEqual(await (await request('/api/challenges/xss/config')).json(), { previewOrigin: 'http://127.0.0.1:8081' });
+  assert.deepEqual(await (await request('/api/challenges/xss/config')).json(), { previewPath: '/xss-preview/' });
   const response = await request('/api/products');
   assert.equal(response.status, 200);
   assert.match(response.headers.get('content-security-policy'), /script-src 'self'/);
