@@ -81,7 +81,9 @@ test('integration confines the sink and remounts the sandbox when the search cha
   assert.ok(frame.includes('url.searchParams.set("search", search)'));
   assert.ok(!frame.includes('dangerouslySetInnerHTML'));
   assert.ok(!page.includes('dangerouslySetInnerHTML'));
-  assert.ok(page.includes('search.trim() && ('));
+  assert.ok(page.includes(') : search.trim() ? ('));
+  assert.ok(!page.includes('{search.trim() && ('));
+  assert.ok(page.indexOf(') : filtered.length ? (') < page.indexOf(') : search.trim() ? ('));
   assert.ok(page.includes('onReset={() => setSearch("")}'));
 });
 
