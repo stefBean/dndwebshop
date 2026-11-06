@@ -161,39 +161,37 @@ test('production excludes demo credentials even when a development database is r
   db.close();
 });
 
-test('active CWE-779 challenge logs full headers and large bodies', async (t) => {
+test('active CWE-779 challenge logs full headers and the whole catalogue response', async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'dice-lore-log-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const logPath = path.join(directory, 'app.log');
   const { request } = await fixture(t, { challengeOptions: { logPath }, activeChallenges: ['log-flood'] });
-  const payload = 'A'.repeat(50 * 1024);
-  const response = await request('/api/log.flood', {
-    method: 'POST',
-    body: { text: payload },
+  const response = await request('/api/products?search=dice', {
     headers: { Authorization: 'Bearer secret-token', Cookie: 'session=leaky' },
   });
   assert.equal(response.status, 200);
+  const products = await response.json();
   const contents = await readFile(logPath, 'utf8');
-  assert.ok(contents.includes(payload));
   assert.ok(contents.includes('secret-token'));
   assert.ok(contents.includes('leaky'));
-  const status = await (await request('/api/challenges/log-flood/status')).json();
-  assert.ok(status.sizeBytes > 50 * 1024);
+  assert.ok(contents.includes('search=dice'));
+  for (const product of products) assert.ok(contents.includes(product.name), product.name);
+  const status = await (await request('/api/audit-log/status')).json();
+  assert.ok(status.sizeBytes > 1024);
   assert.equal(status.achieved, false);
 });
 
-test('challenge reset clears only the log and can require an admin token', async (t) => {
+test('audit log reset clears only the log', async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'dice-lore-log-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const logPath = path.join(directory, 'app.log');
-  const { request } = await fixture(t, { challengeOptions: { logPath, adminToken: 'admin-secret' } });
-  await request('/api/log.flood', { method: 'POST', body: { text: 'x' } });
-  assert.equal((await request('/api/challenges/log-flood/reset', { method: 'POST' })).status, 403);
-  const reset = await request('/api/challenges/log-flood/reset', { method: 'POST', headers: { 'x-challenge-token': 'admin-secret' } });
+  const { request } = await fixture(t, { challengeOptions: { logPath } });
+  await request('/api/products');
+  const reset = await request('/api/audit-log/reset', { method: 'POST' });
   assert.equal(reset.status, 200);
   const body = await reset.json();
   assert.equal(body.sizeBytes, 0);
-  assert.equal((await (await request('/api/challenges/log-flood/status')).json()).sizeBytes, 0);
+  assert.equal((await (await request('/api/audit-log/status')).json()).sizeBytes, 0);
 });
 
 test('database initialization is repeatable and preserves custom catalogue data and stock', () => {
@@ -219,25 +217,25 @@ test('challenge flags default to safe and initialization preserves an explicit s
   assert.equal(db.prepare("SELECT active FROM challenges WHERE id = 'log-flood'").get().active, 1);
 });
 
-test('safe logging rejects large bodies, redacts secrets, rate limits and switches modes live', async (t) => {
+test('safe logging keeps the shop working and redacts secrets', async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'dice-safe-log-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const logPath = path.join(directory, 'app.log');
   const { db, request } = await fixture(t, { challengeOptions: { logPath } });
-  const send = (text) => request('/api/log.flood', {
-    method: 'POST', body: { text }, headers: { Authorization: 'Bearer secret-token' },
+  const send = () => request('/api/products?search=private-query', {
+    headers: { Authorization: 'Bearer secret-token', Cookie: 'session=leaky' },
   });
-  assert.equal((await send('A'.repeat(50 * 1024))).status, 413);
-  assert.equal((await send('private-body')).status, 200);
+  assert.equal((await send()).status, 200);
   const contents = await readFile(logPath, 'utf8');
-  assert.ok(!contents.includes('private-body'));
+  assert.ok(!contents.includes('private-query'));
   assert.ok(!contents.includes('secret-token'));
-  for (let i = 0; i < 28; i += 1) assert.equal((await send('x')).status, 200);
-  assert.equal((await send('x')).status, 429);
+  assert.ok(!contents.includes('leaky'));
+  assert.ok(!contents.includes('Dragon'));
   db.prepare("UPDATE challenges SET active = 1 WHERE id = 'log-flood'").run();
-  assert.equal((await send('A'.repeat(50 * 1024))).status, 200);
+  assert.equal((await send()).status, 200);
+  assert.ok((await readFile(logPath, 'utf8')).includes('private-query'));
   db.prepare("UPDATE challenges SET active = 0 WHERE id = 'log-flood'").run();
-  assert.equal((await (await request('/api/challenges/log-flood/status')).json()).isActive, false);
+  assert.equal((await (await request('/api/audit-log/status')).json()).isActive, false);
 });
 
 test('weak hashing is limited to the demo target and disabling restores scrypt verification', async (t) => {
@@ -256,10 +254,18 @@ test('weak hashing is limited to the demo target and disabling restores scrypt v
 });
 
 test('production ignores active challenge flags', async (t) => {
-  const { request } = await fixture(t, { production: true, activeChallenges: ['weak-password', 'log-flood'] });
-  const status = await (await request('/api/challenges/log-flood/status')).json();
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'dice-prod-log-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const logPath = path.join(directory, 'app.log');
+  const { request } = await fixture(t, {
+    production: true,
+    challengeOptions: { logPath },
+    activeChallenges: ['weak-password', 'log-flood'],
+  });
+  const status = await (await request('/api/audit-log/status')).json();
   assert.equal(status.isActive, false);
-  assert.equal((await request('/api/log.flood', { method: 'POST', body: { text: 'A'.repeat(50 * 1024) } })).status, 413);
+  assert.equal((await request('/api/products')).status, 200);
+  assert.equal((await (await request('/api/audit-log/status')).json()).sizeBytes, 0);
   assert.equal((await request('/api/auth/login', { method: 'POST', body: { username: 'aria', password } })).status, 401);
 });
 

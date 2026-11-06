@@ -6,7 +6,6 @@ import { fileURLToPath } from 'node:url';
 import { importProducts } from './products.js';
 import { hashPasswordSync } from './security.js';
 import { createChallengeState } from './challenges.js';
-import { createChallengeRouter } from './challenge-log.js';
 
 const serverDirectory = path.dirname(fileURLToPath(import.meta.url));
 const starterProductsFile = path.join(serverDirectory, 'data/products.json');

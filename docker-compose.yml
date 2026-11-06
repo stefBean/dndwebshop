@@ -6,14 +6,13 @@ services:
       XSS_PREVIEW_ORIGIN: ${XSS_PREVIEW_ORIGIN:-http://127.0.0.1:8081}
       INTERNAL_HTTP_TEST: "true"
       ENABLE_DEMO_ACCOUNTS: "true"
-      CHALLENGE_LOG_PATH: /tmp/dice-lore-challenge/app.log
-      CHALLENGE_ADMIN_TOKEN: ${CHALLENGE_ADMIN_TOKEN:-}
+      AUDIT_LOG_PATH: /tmp/dice-lore-audit/app.log
     ports:
       - "${SHOP_BIND_IP:-127.0.0.1}:8080:3001"
     volumes:
       - shop-data:/data
     tmpfs:
-      - /tmp/dice-lore-challenge:size=32m,mode=1777
+      - /tmp/dice-lore-audit:size=32m,mode=1777
     restart: unless-stopped
 
   xss-preview:
