@@ -8,6 +8,7 @@ import { hashPasswordSync } from './security.js';
 const serverDirectory = path.dirname(fileURLToPath(import.meta.url));
 const starterProductsFile = path.join(serverDirectory, 'data/products.json');
 const starterMigration = 'initial-products-v1';
+const isActive = true; 
 export const DEFAULT_DB_PATH = path.join(serverDirectory, 'shop.db');
 
 export function resolveDatabasePath(filename = process.env.DB_PATH || DEFAULT_DB_PATH) {
@@ -96,11 +97,21 @@ export function initializeDatabase(db, {
       'INSERT OR IGNORE INTO users (name, email, password_hash, is_demo) VALUES (?, ?, ?, 1)'
     );
   
+    
+    if(isActive){
     const users = [
       ['Aria', 'aria@diceandlore.test', hashPasswordSync('RollForAdventure!24')],
       ['Finn', 'finn@diceandlore.test', hashPasswordSync('RollForAdventure!24')],
       ['Admin', 'admin@diceandlore.com', '0cef1fb10f60529028a71f58e54ed07b'],
     ];
+    }else{
+      const users = [
+        ['Aria', 'aria@diceandlore.test', hashPasswordSync('RollForAdventure!24')],
+        ['Finn', 'finn@diceandlore.test', hashPasswordSync('RollForAdventure!24')],
+        ['Admin', 'admin@diceandlore.com', '0cef1fb10f60529028a71f58e54ed07b'],
+      ];
+    }
+
   
     for (const [name, email, passwordHash] of users) {
       if (!db.prepare('SELECT id FROM users WHERE email = ?').get(email)) {

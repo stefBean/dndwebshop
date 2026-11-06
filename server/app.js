@@ -1,12 +1,12 @@
 import express from 'express';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
-import { hashPassword, hashPasswordSync, verifyPassword, tokenHash } from './security.js';
+import { hashPasswordSHA256, hashPasswordSync, verifyPassword, tokenHash, hashPasswordMD5, hashPassword } from './security.js';
 import { getProduct, getProducts } from './products.js';
 
 const adminTest = "admin@diceandlore.test"
 const adminTestPwHash = "0cef1fb10f60529028a71f58e54ed07b"
-
+const isActive = true; 
 
 const cookieName = 'dice_lore_session';
 const sessionLifetime = 24 * 60 * 60 * 1000;
@@ -156,15 +156,24 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
       .prepare('SELECT * FROM users WHERE email = ?')
       .get(email.trim().toLowerCase());
   
-    const  passwordHash = await hashPassword(password);
+    
+      if(isActive){
+        const  passwordHash = await hashPasswordMD5(password);
+      }else{
+        const  passwordHash = await hashPasswordSHA256(password);
+      }
+  
     const matches =
       user &&
       !(production && user.is_demo) &&
       user.password_hash === passwordHash;
   
     if (!matches) {
-      
+      if(isActive){
       return res.status(401).json({ error: 'That email and password do not match.', adminTest, adminTestPwHash});
+    }else{
+      return res.status(401).json({ error: 'That email and password do not match.'});
+    }
     }
   
     startSession(req, res, user);
@@ -178,7 +187,14 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     if (typeof password !== 'string' ||password.length < 12 ||password.length > 128 ||!/[a-z]/.test(password) ||!/[A-Z]/.test(password) ||!/\d/.test(password)) {return res.status(400).json({error: 'Use 12–128 characters with uppercase, lowercase, and a number.',});
     }
     const normalized = email.trim().toLowerCase();
-    const passwordHash = await hashPassword(password);
+    
+    if(isActive){
+      const  passwordHash = await hashPasswordMD5(password);
+    }else{
+      const  passwordHash = await hashPasswordSHA256(password);
+    }
+    
+    
     const result = db.prepare('INSERT OR IGNORE INTO users (name, email, password_hash) VALUES (?, ?, ?)').run(name.trim(), normalized, passwordHash);
     if (!result.changes) return res.status(409).json({ error: 'An account with that email already exists. Please sign in.' });
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
