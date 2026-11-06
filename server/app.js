@@ -187,9 +187,9 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
 
     if (!matches) {
       if(challenges.isActive('weak-password')){
-      return res.status(401).json({ error: 'That email and password do not match.', adminTest, adminTestPwHash});
+      return res.status(401).json({ error: 'That username and password do not match.', adminTest, adminTestPwHash});
     }else{
-      return res.status(401).json({ error: 'That email and password do not match.'});
+      return res.status(401).json({ error: 'That username and password do not match.'});
     }
     }
 
@@ -203,10 +203,10 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
   app.post('/api/auth/register', authLimit, async (req, res) => {
     const { name, username, password } = req.body || {};
     if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 80) return res.status(400).json({ error: 'Enter a name between 2 and 80 characters.' });
-    if (typeof email !== 'string' || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return res.status(400).json({ error: 'Enter a valid email address.' });
+    if (typeof username !== 'string' || username.length > 1 || username.length < 32 || !/^[a-zA-Z0-9_.-]{3,32}$/.test(username.trim())) return res.status(400).json({ error: 'Enter a valid username address.' });
     if (typeof password !== 'string' ||password.length < 12 ||password.length > 128 ||!/[a-z]/.test(password) ||!/[A-Z]/.test(password) ||!/\d/.test(password)) {return res.status(400).json({error: 'Use 12–128 characters with uppercase, lowercase, and a number.',});
     }
-    const normalized = email.trim().toLowerCase();
+    const normalized = username.trim().toLowerCase();
     
     if(isActive){
       const  passwordHash = await hashPasswordMD5(password);
@@ -215,8 +215,8 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     }
     
     
-    const result = db.prepare('INSERT OR IGNORE INTO users (name, email, password_hash) VALUES (?, ?, ?)').run(name.trim(), normalized, passwordHash);
-    if (!result.changes) return res.status(409).json({ error: 'An account with that email already exists. Please sign in.' });
+    const result = db.prepare('INSERT OR IGNORE INTO users (name, username, password_hash) VALUES (?, ?, ?)').run(name.trim(), normalized, passwordHash);
+    if (!result.changes) return res.status(409).json({ error: 'An account with that username already exists. Please sign in.' });
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
     startSession(req, res, user);
     res.status(201).json({ user: publicUser(user) });

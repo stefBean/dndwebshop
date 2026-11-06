@@ -238,30 +238,6 @@ export default function AnimatedPotion({ className = "" }) {
             strokeWidth="2"
             strokeLinecap="round"
           />
-
-          <rect
-            x="254"
-            y="374"
-            width="92"
-            height="78"
-            rx="20"
-            fill="#130c22"
-            fillOpacity=".3"
-            stroke="#e9dfff"
-            strokeOpacity=".3"
-          />
-          <path
-            d="M300 385L321 413L300 441L279 413Z"
-            fill="none"
-            stroke="#ede7f7"
-            strokeOpacity=".75"
-          />
-          <path
-            d="M300 396V430M288 413H312"
-            stroke="#ede7f7"
-            strokeOpacity=".75"
-            strokeLinecap="round"
-          />
         </g>
 
         <g
