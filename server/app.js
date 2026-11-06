@@ -73,8 +73,6 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
           return res.status(403).json({ error: 'Invalid request origin.' });
         }
       }
-      // The challenge reset endpoint takes no body, so it is exempt from the
-      // JSON content-type requirement. Everything else must send JSON.
       const bodyOptional = req.path === '/auth/logout' || req.path === '/challenges/log-flood/reset';
       if (req.method === 'POST' && !bodyOptional && !req.is('application/json')) {
         return res.status(415).json({ error: 'Send this request as application/json.' });
@@ -82,8 +80,6 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     }
     next();
   });
-  // The CWE-779 challenge keeps its own body limit and is mounted before the
-  // shared JSON parser so it cannot weaken the hardened shop API.
   app.use(createChallengeRouter({ ...challengeOptions, isActive: () => challenges.isActive('log-flood') }));
   app.use(express.json({ limit: '16kb' }));
   app.use('/api', (req, res, next) => {
