@@ -34,147 +34,131 @@ Vite proxies `/api` to the backend. SQLite always defaults to `server/shop.db`, 
 
 The database initializes automatically. A new, empty database imports the starter products once from `server/data/products.json` and records that initialization. Existing product rows are never replaced during startup. Subsequent restarts preserve edited names, prices, images, stock, and even a deliberately empty catalogue. `npm run seed` in `server` is an idempotent initialization command; it does not restore deleted products or erase customer data.
 
-## Product database
+# Dungeons & Dragons Shop
 
-The product source of truth is the SQLite `products` table. React loads it through `GET /api/products`; product details, search, prices, availability, and checkout all read the stored rows. No product array is embedded in the frontend and no sample-data fallback is used for requests. The starter JSON is bootstrap/import data, not a live catalogue. Editing that file alone does not change an existing database.
+A university webshop featuring three OWASP Top 10:2025 security challenges.
 
-To maintain the catalogue, edit `server/shop.db` with a SQLite editor or import a JSON file. For example, save this as a new file:
+**Tech stack:** React, Node.js, Express, SQLite, Docker Compose.
 
-```json
-[
-  {
-    "id": 7,
-    "name": "Arcane Lantern",
-    "description": "A lantern for your next dungeon expedition.",
-    "price_cents": 1250,
-    "category": "Gear",
-    "image": "/images/adventurer-kit.svg",
-    "tag": "New",
-    "stock": 10
-  }
-]
+The shop includes product browsing, customer accounts, a shopping cart, simulated checkout and order history.
+
+## 1. Access
+
+The webshop is hosted on an Ubuntu VM using Proxmox.
+
+| | Address |
+|---|---|
+| Webshop | http://dice-and-lore.hcw:8080 |
+| Challenges | http://dice-and-lore.hcw:8080/challenges |
+| Server IP | `10.13.26.24` |
+| Access | HCW network / WireGuard |
+
+All exercises must be performed within the designated challenge areas.
+
+## 2. Start and Stop
+
+Connect to the Ubuntu server via SSH.
+
+```bash
+cd ~/dndwebshop
+
+# Start the shop
+sudo docker compose up -d
+
+# Check container status
+sudo docker compose ps
+
+# Stop the shop
+sudo docker compose down
 ```
 
-From the repository root, import it using an absolute file path:
+To deploy an updated version of `master`:
 
-```sh
-npm --prefix server run products:import -- /absolute/path/to/products.json
+```bash
+git switch master
+git pull --ff-only origin master
+sudo docker compose up --build -d --remove-orphans
 ```
 
-Matching IDs are updated; new IDs are inserted; products absent from the file are preserved. The complete file is validated before the database is opened, and writes are atomic. IDs must be positive integers, prices use integer euro cents, and stock is a nonnegative integer. Image paths refer to local assets in `client/public/images`. To intentionally import the starter data again, run `npm --prefix server run products:import -- data/products.json`; this explicit command updates the six starter IDs, including their stock, so use it only when desired.
+The SQLite database is stored in a persistent Docker volume and is not deleted by a normal restart.
 
-Refresh the shop after importing or editing the database. Catalogue categories and counts come from the stored products. Docker retains the same database at `/data/shop.db` in the named volume. SQLite files, customer accounts, sessions, and orders are excluded from Git; share the import JSON rather than a live database.
+Do not use `docker compose down -v`, as this can delete stored data.
 
-## Development accounts
+## 3. Test Account
 
-In development only, two fictitious customer accounts are available:
+A fictional customer account is available for testing the normal shopping process.
 
 | Username | Password |
-| --- | --- |
-| `aria` | `RollForAdventure!24` |
+|---|---|
 | `finn` | `RollForAdventure!24` |
 
-Customers can also create their own accounts. Passwords require 12–128 characters with uppercase, lowercase, and a number. Passwords are salted and hashed with scrypt; raw passwords are never stored. Sessions use random opaque tokens in HttpOnly, SameSite=Lax cookies. Only token hashes are stored server-side. Sessions expire after 24 hours and are invalidated on logout. Login and registration share a limit of eight attempts per IP in two minutes.
+Additional credentials for security exercises are provided separately to the instructor.
 
-With `NODE_ENV=production`, demo accounts are not created and existing demo accounts cannot authenticate. Production session cookies require HTTPS. Run behind an HTTPS reverse proxy that preserves the request Host and Origin. The application rejects cross-origin mutation requests and provides no cross-origin API grant. Configure deployment ingress and TLS for the actual hostname before publishing a public instance.
+## 4. Security Challenges
 
-## Cart and orders
+Open `/challenges` to view the tasks.
 
-The cart persists across navigation and browser reloads in `localStorage` under the unchanged key `dice-and-lore.cart.v1`, so existing saved carts remain compatible. The JSON format is only an array of product references and quantities, for example `[{"product_id":1,"quantity":2}]`. IDs must be positive safe integers and quantities whole numbers from 1 to 99. Duplicate IDs are consolidated; malformed entries are ignored without losing valid items. `client/src/lib/cart-storage.js` owns parsing, sanitization, reading, and writing. If storage is blocked or full, the in-memory cart remains usable and the shop shows a notification.
+| Challenge | Objective | Verification |
+|---|---|---|
+| Log Flood · CWE-779 | Investigate excessive logging | Audit-log status reaches the defined threshold |
+| Weak Password | Demonstrate weak password protection | Successful login to the designated challenge account |
+| DOM-XSS · CWE-80 | Execute JavaScript through product search | Visible execution in the isolated preview |
 
-Names, prices, account details, passwords, and authentication tokens are never saved in the cart. Product information comes from the API and authentication remains a server-side session with an HttpOnly cookie. Checkout requires sign-in and is a simulation: it never charges money or initiates shipping. The backend validates quantities and stock, calculates authoritative totals, saves order-line snapshots, and reduces stock atomically. Order history belongs to the signed-in account.
+### Enable Challenges
 
-## Safe and challenge modes
+Run these commands inside the project directory on the Ubuntu server:
 
-`challenges.active` is a SQLite boolean (`0` or `1`), read by `isActive(id)` on
-requests. Both existing challenges default to inactive. Flags persist across
-restarts and database initialization. Toggle them from the server directory:
+**Weak Password**
 
-```sh
-npm run challenge:set -- log-flood true
-npm run challenge:set -- weak-password true
-# Return to safe behavior:
-npm run challenge:set -- log-flood false
-npm run challenge:set -- weak-password false
+```bash
+sudo docker compose exec shop npm run challenge:set -- weak-password true
 ```
 
-No restart is required. `NODE_ENV=production` always uses safe behavior,
-regardless of stored flags. Flags cannot be changed through public HTTP requests.
-Use the same `DB_PATH` as the running server.
+**Log Flood**
 
-Inactive logging records metadata only (no headers, no response body, query
-string truncated) and rotates at 64 KiB. Active logging retains full request
-headers and the complete catalogue response in the isolated audit log, with a
-32 MiB application cap. Disabling the flag does not erase previously written
-sensitive data; use the log reset command to clear it.
-
-The weak-password flag enables MD5 verification only for the seeded Aria demo
-account's separate `challenge_password_hash`. Its regular scrypt credential is
-preserved, so turning the flag off immediately restores safe verification.
-Finn and registered customers always use scrypt. Passwords are submitted to the
-server for verification; serve the shop over HTTPS outside local development.
-The DOM-XSS exercise runs in a sandboxed iframe at /xss-preview/ on the shop
-origin, using the same container and port. See [the XSS guide](challenge-xss/README.md)
-for single-IP deployment, payloads and isolation checks.
-
-## Audit log: CWE-779 logging of excessive data
-
-The OWASP A09:2025 issue is implemented in `server/audit-log.js` and is
-triggered by ordinary shopping: every `GET /api/products` request is logged.
-When the flag is active, the shop writes the full request headers (including the
-session cookie) and the complete catalogue response to a dedicated log file,
-unredacted and without rate limiting, up to the 32 MiB storage cap. A customer
-browsing the catalogue therefore floods the log with data the shop never needs
-to keep.
-
-Endpoints:
-
-| Method | Path | Behavior |
-| --- | --- | --- |
-| GET | `/api/products` | Catalogue request; the audit log entry is written here |
-| GET | `/api/audit-log/status` | Current log size and the 10 MB threshold |
-| POST | `/api/audit-log/reset` | Truncates the audit log only |
-
-The log defaults to `/tmp/dice-lore-audit/app.log` and can be changed with
-`AUDIT_LOG_PATH`. `docker-compose.yml` mounts that directory as a 32 MiB
-tmpfs, so a flood cannot fill the container or the persistent database volume.
-
-Reproduce the issue (first run `npm run challenge:set -- log-flood true` from `server/`):
-
-```sh
-# Baseline size
-curl -s localhost:3001/api/audit-log/status
-
-# Browse the catalogue repeatedly, like a scraper would
-for i in $(seq 1 3000); do
-  curl -s -o /dev/null localhost:3001/api/products
-done
-
-# Size should now exceed the 10 MB threshold
-curl -s localhost:3001/api/audit-log/status
+```bash
+sudo docker compose exec shop npm run challenge:set -- log-flood true
 ```
 
-Each entry is roughly 3.5 KB, so about 3000 catalogue requests reach the 10 MB
-goal. Inspect the leaked data with `tail -1 /tmp/dice-lore-audit/app.log`.
+**DOM-XSS**
 
-Reset only the audit log (database, sessions and orders are untouched):
+The preview is available through the product search at `/products`. No additional activation is needed for the current preview implementation.
 
-```sh
-docker compose exec shop npm run audit:reset
-# or, from server/: npm run audit:reset
+### Disable Challenges
+
+```bash
+sudo docker compose exec shop npm run challenge:set -- weak-password false
+sudo docker compose exec shop npm run challenge:set -- log-flood false
 ```
 
-## Validation
+Disabling a challenge does not necessarily reset its stored progress.
 
-```sh
-npm run build
-npm run lint
-npm test
+## 5. Reset
+
+**Reset the audit log:**
+
+```bash
+sudo docker compose exec shop npm run audit:reset
 ```
 
-From the repository root, `npm test` runs 10 client cart-storage tests followed by 22 backend integration tests. Client checks cover persistence, reloads, malformed data, integer validation, deduplication, removal of injected account and price fields, and storage failures.
+**Full webshop reset:**
 
-Backend integration tests run against isolated temporary databases and cover product import validation and rollback, database-backed API responses, persistence across restarts, one-time seeding, stable database paths, literal SQL search, catalogue data, login/logout/session expiry, registration, rate limiting, request validation, stock and authoritative prices, persisted orders, account isolation, production demo-account exclusion, non-destructive initialization, and the CWE-779 challenge (unlimited logging and reset). Tests listen on temporary loopback ports; sandboxed execution may require the environment's supported local-network permission flow.
+The verified shop-reset command must be added here. It must restore the documented starting state of products, test accounts, orders and carts.
+
+Before repeating an exercise, follow the appropriate reset instructions.
+
+## 6. Documentation for the Instructor
+
+The repository contains the webshop source code and configuration.
+
+The following information is provided separately to the instructor:
+
+- Challenge solutions and reproducible verification steps
+- CWE references, secure fixes and test scenarios
+- Architecture and technology decisions
+- Additional test credentials and the verified reset procedure
+
+**Submission version:** Add the final tested Git commit or release tag here.
 
 ## API
 
@@ -191,8 +175,4 @@ Backend integration tests run against isolated temporary databases and cover pro
 | GET | `/api/audit-log/status` | Audit log size and threshold |
 | POST | `/api/audit-log/reset` | Truncate the audit log |
 
-JSON mutation requests must use `Content-Type: application/json`, except the bodyless logout request. Errors return `{ error }` with the appropriate HTTP status. Product and order prices use integer euro cents.
 
-## Branding assets
-
-The monochrome Dungeons & Dragons dragon-ampersand symbol is provided by [Simple Icons](https://github.com/simple-icons/simple-icons/blob/develop/icons/dungeonsanddragons.svg) under CC0 and is stored locally in `client/public/images/dnd-symbol.svg`. The shop wordmark is a local typographic composition inspired by the Dungeons & Dragons identity, with “Shop” added. Product illustrations remain in color.
