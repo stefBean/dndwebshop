@@ -91,9 +91,6 @@ export default function ShopPage({ featured = false }) {
                 </button>
               </p>
             )}
-            {search.trim() && (
-              <SearchChallengeFrame search={search} onReset={() => setSearch("")} />
-            )}
             {loading ? (
               <ProductGrid loading />
             ) : error ? (
@@ -115,6 +112,8 @@ export default function ShopPage({ featured = false }) {
                 products={filtered}
                 onQuickView={setSelectedProduct}
               />
+            ) : search.trim() ? (
+                <SearchChallengeFrame search={search} onReset={() => setSearch("")} />
 
             ) : (
               <EmptyState
