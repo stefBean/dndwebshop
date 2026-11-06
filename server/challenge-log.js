@@ -2,14 +2,6 @@ import express from 'express';
 import { appendFile, mkdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-/**
- * CWE-779 / OWASP A09:2025 "Logging of Excessive Data" challenge.
- *
- * Active mode intentionally logs full headers and bodies in an isolated file.
- * Inactive mode limits bodies and request frequency, records metadata only,
- * and rotates the file. Both modes enforce a storage cap.
- */
-
 export const DEFAULT_LOG_PATH = '/tmp/dice-lore-challenge/app.log';
 export const DEFAULT_THRESHOLD_BYTES = 10 * 1024 * 1024; // challenge goal: > 10 MB
 export const BODY_LIMIT = '1mb';
@@ -56,10 +48,6 @@ export function createChallengeLog({
     };
   }
 
-  /**
-   * Active mode intentionally includes credentials and bodies for the exercise.
-   * Safe mode records bounded metadata without query strings or credentials.
-   */
   function write(req) {
     return enqueue(async () => {
       await mkdir(directory, { recursive: true });
@@ -100,11 +88,6 @@ function requireAdmin(log) {
   };
 }
 
-/**
- * Express router for the isolated challenge endpoints.
- * Mount this before the global JSON parser so the challenge can accept a
- * larger body without weakening the rest of the API.
- */
 export function createChallengeRouter(options = {}) {
   const log = createChallengeLog(options);
   const router = express.Router();
