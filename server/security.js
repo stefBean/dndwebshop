@@ -3,16 +3,27 @@ import { promisify } from 'node:util';
 
 const derive = promisify(scrypt);
 const options = { N: 32768, r: 8, p: 3, maxmem: 64 * 1024 * 1024 };
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+
+
+
 export function hashPasswordSync(password) {
   const salt = randomBytes(16).toString('hex');
   return `scrypt:${salt}:${scryptSync(password, salt, 64, options).toString('hex')}`;
 }
 
-export async function hashPassword(password) {
+export async function hashPasswordSHA256(password) {   
   const salt = randomBytes(16).toString('hex');
   return `scrypt:${salt}:${(await derive(password, salt, 64, options)).toString('hex')}`;
 }
+
+
+  export async function hashPasswordMD5(password) {                         //MD5
+  return createHash('md5').update(password, 'utf8').digest('hex');
+}  
+
+
+
+
 
 export async function verifyPassword(password, stored) {
   const [algorithm, salt, encoded] = stored.split(':');
