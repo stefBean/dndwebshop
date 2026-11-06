@@ -138,6 +138,7 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
   app.get('/api/products', (req, res) => {
     const search = typeof req.query.search === 'string' ? req.query.search.slice(0, 200) : '';
     res.json(getProducts(db, search));
+    
   });
   
   app.get('/api/products/:id', (req, res) => {
