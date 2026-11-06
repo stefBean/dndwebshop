@@ -154,7 +154,6 @@ export function initializeDatabase(db, {
       const users = [
         ['Aria', 'aria', hashPasswordSync('RollForAdventure!24')],
         ['Finn', 'finn', hashPasswordSync('RollForAdventure!24')],
-        ['Admin', 'admin@diceandlore.com', '0cef1fb10f60529028a71f58e54ed07b'],
         ...(challenges.isActive('weak-password')
         ? [['Admin', 'admin', '0cef1fb10f60529028a71f58e54ed07b']]
         : []),

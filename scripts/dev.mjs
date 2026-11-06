@@ -52,8 +52,6 @@ function start(name, args, cwd) {
 process.on('SIGINT', () => stop(0));
 process.on('SIGTERM', () => stop(0));
 
-console.log(`[dev] Starting the API on port ${process.env.PORT || 3001} Vite and the isolated XSS preview. Press Ctrl+C to stop all services.`);
+console.log(`[dev] Starting the API on port ${process.env.PORT || 3001} and Vite (including the sandboxed XSS preview). Press Ctrl+C to stop all services.`);
 start('API', [path.join(root, 'server/index.js')], path.join(root, 'server'));
 start('Frontend', [vite, '--strictPort', ...process.argv.slice(2)], path.join(root, 'client'));
-
-start('XSS preview', [path.join(root, 'challenge-xss/server.mjs')], root);

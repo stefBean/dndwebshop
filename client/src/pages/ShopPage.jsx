@@ -113,8 +113,7 @@ export default function ShopPage({ featured = false }) {
                 onQuickView={setSelectedProduct}
               />
             ) : search.trim() ? (
-                <SearchChallengeFrame search={search} onReset={() => setSearch("")} />
-
+              <SearchChallengeFrame search={search} onReset={reset} />
             ) : (
               <EmptyState
                 title="No treasures found"

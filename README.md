@@ -113,8 +113,9 @@ account's separate `challenge_password_hash`. Its regular scrypt credential is
 preserved, so turning the flag off immediately restores safe verification.
 Finn and registered customers always use scrypt. Passwords are submitted to the
 server for verification; serve the shop over HTTPS outside local development.
-The XSS exercise described in the concept PDF is not implemented in this codebase;
-search continues to render plain text.
+The DOM-XSS exercise runs in a sandboxed iframe at /xss-preview/ on the shop
+origin, using the same container and port. See [the XSS guide](challenge-xss/README.md)
+for single-IP deployment, payloads and isolation checks.
 
 ## Security challenge: CWE-779 logging of excessive data
 
