@@ -71,7 +71,7 @@ export function initializeDatabase(db, {
       id TEXT PRIMARY KEY,
       active INTEGER NOT NULL DEFAULT 0 CHECK(active IN (0, 1))
     );
-    INSERT OR IGNORE INTO challenges (id) VALUES ('weak-password'), ('log-flood');
+    INSERT OR IGNORE INTO challenges (id) VALUES ('weak-password'), ('log-flood'), ('xss');
     CREATE TABLE IF NOT EXISTS sessions (
       token_hash TEXT PRIMARY KEY,
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

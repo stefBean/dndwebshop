@@ -1,8 +1,8 @@
 import { openDatabase } from './db.js';
 
 const [id, active] = process.argv.slice(2);
-if (!['weak-password', 'log-flood'].includes(id) || !['true', 'false'].includes(active)) {
-  console.error('Usage: npm run challenge:set -- <weak-password|log-flood> <true|false>');
+if (!['weak-password', 'log-flood', 'xss'].includes(id) || !['true', 'false'].includes(active)) {
+  console.error('Usage: npm run challenge:set -- <weak-password|log-flood|xss> <true|false>');
   process.exitCode = 1;
 } else {
   const db = openDatabase();

@@ -1,8 +1,19 @@
 # DOM-XSS in der Produktsuche (CWE-80 / OWASP A05:2025)
 
-Diese absichtliche Schwachstelle ist für die interne SSD-Testumgebung immer verfügbar.
-Die bestehende CWE-779-Logging-Challenge bleibt unverändert. Es gibt keinen
-Aktivierungsschalter und keinen gespeicherten XSS-Fortschritt.
+Die Challenge verwendet den gemeinsamen Aktivierungsschalter `isActive`:
+
+```sh
+npm run challenge:set --prefix server -- xss true
+npm run challenge:set --prefix server -- xss false
+```
+
+Der Status wird bei jeder Suche neu gelesen. Nur bei aktivem Status wird der
+isolierte Frame geladen, auch bei Produkt-Treffern oder leerem Katalog. In
+Produktion bleibt die Challenge wie die anderen Challenges deaktiviert.
+
+Test-Payload: `<svg onload="alert('XSS')"></svg>`. `alert()` sendet eine
+Nachricht an den Shop, der den Frame-Absender und Nachrichtentyp prüft und den
+Browser-Alert öffnet. So bleibt die opaque Sandbox-Origin erhalten.
 
 ## Start
 
@@ -38,14 +49,14 @@ den Preview-Dienst zusätzlich mit `node challenge-xss/server.mjs` starten.
 ## Datenfluss und absichtliche Schwachstelle
 
 Die normale React-Suche filtert weiterhin den geladenen Produktkatalog. Nur bei
-einem nichtleeren Suchbegriff ohne Treffer wird der bestehende Leerzustand ersetzt.
+einem nichtleeren Suchbegriff und aktivierter Challenge wird die Preview angezeigt.
 Laden, Fehler, leerer Katalog, Produktkarten, Kategorie und Sortierung bleiben erhalten.
 Die CollectionToolbar benötigt keine Änderung.
 
 Der Wrapper bezieht die feste Preview-Origin von
 `GET /api/challenges/xss/config` und erstellt mit `URL.searchParams.set` eine
 URL mit kodiertem `?search=...`. Es gibt keinen HTML-Sink im Shop und kein
-postMessage-Protokoll. Das feste Preview-HTML enthält keinen serverseitig
+ungeprüftes postMessage-Protokoll; nur Alert-Nachrichten des aktuellen Frames werden akzeptiert. Das feste Preview-HTML enthält keinen serverseitig
 reflektierten Suchtext. Ausschließlich sein Browser-Script liest:
 
 ```js

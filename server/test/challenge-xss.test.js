@@ -30,7 +30,7 @@ test('preview is static: URL input is decoded only by the isolated browser scrip
   assert.ok(html.includes(previewScript));
   const result = {};
   runInNewContext(previewScript, {
-    URLSearchParams, location: { search: url.search },
+    window: {}, URLSearchParams, location: { search: url.search },
     document: { getElementById: (id) => { assert.equal(id, 'result'); return result; } },
   });
   assert.equal(result.innerHTML, 'No products found for: ' + payload);
@@ -64,7 +64,7 @@ test('shop exposes only the fixed preview origin and preserves its script policy
   t.after(() => db.close());
   const base = await serve(t, createApp(db, { xssPreviewOrigin: 'http://127.0.0.1:8081' }));
   const response = await fetch(base + '/api/challenges/xss/config?previewOrigin=https://evil.invalid');
-  assert.deepEqual(await response.json(), { previewOrigin: 'http://127.0.0.1:8081' });
+  assert.deepEqual(await response.json(), { isActive: false, previewOrigin: 'http://127.0.0.1:8081' });
   const csp = response.headers.get('content-security-policy');
   assert.ok(csp.includes("script-src 'self';"));
   assert.ok(csp.includes("frame-src http://127.0.0.1:8081;"));
@@ -81,6 +81,31 @@ test('integration confines the sink and remounts the sandbox when the search cha
   assert.ok(frame.includes('url.searchParams.set("search", search)'));
   assert.ok(!frame.includes('dangerouslySetInnerHTML'));
   assert.ok(!page.includes('dangerouslySetInnerHTML'));
-  assert.ok(page.includes('search.trim() ? ('));
+  assert.ok(page.includes('search.trim() && ('));
   assert.ok(page.includes('onReset={() => setSearch("")}'));
+});
+
+test('XSS activation follows live challenge state and production policy', async (t) => {
+  const db = openDatabase(':memory:', { demoAccounts: false });
+  t.after(() => db.close());
+  const base = await serve(t, createApp(db, { production: false }));
+  const active = async () => (await (await fetch(base + '/api/challenges/xss/config')).json()).isActive;
+  assert.equal(await active(), false);
+  db.prepare("UPDATE challenges SET active = 1 WHERE id = 'xss'").run();
+  assert.equal(await active(), true);
+  const production = await serve(t, createApp(db, { production: true }));
+  assert.equal((await (await fetch(production + '/api/challenges/xss/config')).json()).isActive, false);
+  db.prepare("UPDATE challenges SET active = 0 WHERE id = 'xss'").run();
+  assert.equal(await active(), false);
+});
+
+test('preview relays alert messages to its embedding window', () => {
+  const messages = [];
+  const context = { window: {}, URLSearchParams, location: { search: '' },
+    document: { getElementById: () => ({}) },
+    parent: { postMessage: (...args) => messages.push(args) } };
+  runInNewContext(previewScript, context);
+  context.window.alert('challenge code');
+  assert.equal(messages[0][0].type, 'xss-preview-alert');
+  assert.equal(messages[0][0].message, 'challenge code');
 });

@@ -4,7 +4,8 @@ import { pathToFileURL } from 'node:url';
 
 // The only intentional HTML injection sink in the XSS challenge.
 // Keep this script separate from the shop bundle and all privileged services.
-export const previewScript = `const search = new URLSearchParams(location.search).get('search') || '';
+export const previewScript = `window.alert = (message) => parent.postMessage({ type: 'xss-preview-alert', message: String(message) }, '*');
+const search = new URLSearchParams(location.search).get('search') || '';
 document.getElementById('result').innerHTML = 'No products found for: ' + search;`;
 
 const scriptHash = createHash('sha256').update(previewScript).digest('base64');
