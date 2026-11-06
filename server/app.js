@@ -28,8 +28,11 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     throw new Error('XSS_PREVIEW_ORIGIN must be an HTTP(S) origin without a path.');
   }
   const app = express();
-  const challenges = createChallengeState(db, { production });
-  app.disable('x-powered-by');
+  const challenges = createChallengeState(db, {
+    production,
+    allowChallenges:
+        process.env.ENABLE_CHALLENGES === 'true'
+  });
 
   const internalHttpTest = process.env.INTERNAL_HTTP_TEST === 'true';
   const allowDemoAccounts =
