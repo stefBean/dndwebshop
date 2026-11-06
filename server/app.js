@@ -2,7 +2,7 @@ import express from 'express';
 import { serveXssPreview } from './xss-preview.js';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
-import { hashPasswordSHA256, hashPasswordSync, verifyPassword, tokenHash, hashPasswordMD5} from './security.js';
+import { hashPasswordSHA256, hashPasswordSync, verifyPassword, tokenHash } from './security.js';
 import { getProduct, getProducts } from './products.js';
 import { createChallengeState } from './challenges.js';
 import { createAuditLog, createAuditRouter } from './audit-log.js';
@@ -154,22 +154,6 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
 
   app.get('/api/auth/me', (req, res) => res.json({ user: req.user || null }));
   
-  /*app.post('/api/auth/login', authLimit, async (req, res) => {
-    const { username, password } = req.body || {};
-    if (!validUsername(username) || typeof password !== 'string' || password.length > 128) {
-      return res.status(400).json({ error: 'Enter a valid username and password.' });
-    }
-    const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username.trim().toLowerCase());
-    const weakChallenge = challenges.isActive('weak-password') && user?.is_demo === 1 && !!user.challenge_password_hash;
-    const verified = weakChallenge
-      ? challenges.verifyDemoPassword(password, user.challenge_password_hash)
-      : await verifyPassword(password, user?.password_hash || dummyHash);
-    if (!user || !verified || (!allowDemoAccounts && user.is_demo)) {
-      return res.status(401).json({ error: 'That username and password do not match.' });
-    }
-    startSession(req, res, user);
-    res.json({ user: publicUser(user) });
-  });*/
 
   
   
@@ -179,27 +163,20 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
       return res.status(400).json({ error: 'Enter a valid username and password.' });
     }
     const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username.trim().toLowerCase());
-    const passwordHash = "";
+    // Only demo accounts may use the challenge's MD5 credential.
+    const demoHash = user?.challenge_password_hash || user?.password_hash;
+    const weakChallenge = challenges.isActive('weak-password') && user?.is_demo === 1 &&
+      typeof demoHash === 'string' && /^[a-f0-9]{32}$/i.test(demoHash);
+    const verified = weakChallenge
+      ? challenges.verifyDemoPassword(password, demoHash)
+      : await verifyPassword(password, user?.password_hash || dummyHash);
 
-    if(challenges.isActive('weak-password')){
-      const  passwordHash = await hashPasswordMD5(password);
-    }else{
-      const  passwordHash = await hashPasswordSHA256(password);
+    if (!user || !verified || (!allowDemoAccounts && user.is_demo)) {
+      if (challenges.isActive('weak-password')) {
+        return res.status(401).json({ error: 'That username and password do not match.', adminTest, adminTestPwHash });
+      }
+      return res.status(401).json({ error: 'That username and password do not match.' });
     }
-
-    const matches =
-      user &&
-      !(production && user.is_demo) &&
-      user.password_hash === passwordHash;
-
-    if (!matches) {
-      if(challenges.isActive('weak-password')){
-      return res.status(401).json({ error: 'That username and password do not match.', adminTest, adminTestPwHash});
-    }else{
-      return res.status(401).json({ error: 'That username and password do not match.'});
-    }
-    }
-
 
     startSession(req, res, user);
     res.json({ user: publicUser(user) });
@@ -210,18 +187,13 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
   app.post('/api/auth/register', authLimit, async (req, res) => {
     const { name, username, password } = req.body || {};
     if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 80) return res.status(400).json({ error: 'Enter a name between 2 and 80 characters.' });
-    if (typeof username !== 'string' || !/^[a-zA-Z0-9_.-]{1,32}$/.test(username.trim())) return res.status(400).json({ error: 'Enter a valid username.' });
+    if (!validUsername(username)) return res.status(400).json({ error: 'Enter a valid username.' });
     if (typeof password !== 'string' ||password.length < 12 ||password.length > 128 ||!/[a-z]/.test(password) ||!/[A-Z]/.test(password) ||!/\d/.test(password)) {return res.status(400).json({error: 'Use 12–128 characters with uppercase, lowercase, and a number.',});
     }
     const normalized = username.trim().toLowerCase();
     
-    if(isActive){
-      const  passwordHash = await hashPasswordMD5(password);
-    }else{
-      const  passwordHash = await hashPasswordSHA256(password);
-    }
-    
-    
+    const passwordHash = await hashPasswordSHA256(password);
+
     const result = db.prepare('INSERT OR IGNORE INTO users (name, username, password_hash) VALUES (?, ?, ?)').run(name.trim(), normalized, passwordHash);
     if (!result.changes) return res.status(409).json({ error: 'An account with that username already exists. Please sign in.' });
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
