@@ -3,45 +3,17 @@ services:
     build: .
     environment:
       NODE_ENV: production
-      XSS_PREVIEW_ORIGIN: ${XSS_PREVIEW_ORIGIN:-http://127.0.0.1:8081}
       INTERNAL_HTTP_TEST: "true"
       ENABLE_DEMO_ACCOUNTS: "true"
-      # CWE-779 challenge log location and optional reset protection.
       CHALLENGE_LOG_PATH: /tmp/dice-lore-challenge/app.log
       CHALLENGE_ADMIN_TOKEN: ${CHALLENGE_ADMIN_TOKEN:-}
     ports:
       - "${SHOP_BIND_IP:-127.0.0.1}:8080:3001"
     volumes:
       - shop-data:/data
-    # The challenge log lives on a separate, size-limited tmpfs so a log flood
-    # cannot exhaust the container's writable layer or the persistent volume.
     tmpfs:
       - /tmp/dice-lore-challenge:size=32m,mode=1777
     restart: unless-stopped
-
-  xss-preview:
-    build: ./challenge-xss
-    environment:
-      XSS_SHOP_ORIGINS: ${XSS_SHOP_ORIGINS:-http://localhost:8080 http://localhost:5173 http://localhost:3001}
-    ports:
-      - "${XSS_BIND_IP:-127.0.0.1}:8081:8081"
-    networks:
-      - xss-isolated
-    read_only: true
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges:true
-    mem_limit: 64m
-    cpus: 0.25
-    pids_limit: 64
-    restart: unless-stopped
-
-networks:
-  xss-isolated:
-    # Dedicated bridge; publish the preview without granting normal NAT egress.
-    driver_opts:
-      com.docker.network.bridge.enable_ip_masquerade: "false"
 
 volumes:
   shop-data:
