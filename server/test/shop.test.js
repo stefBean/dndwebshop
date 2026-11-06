@@ -253,19 +253,35 @@ test('weak hashing is limited to the demo target and disabling restores scrypt v
   assert.equal(db.prepare('SELECT password_hash FROM users WHERE id = ?').get(user.id).password_hash, user.password_hash);
 });
 
-test('production ignores active challenge flags', async (t) => {
+test('production ignores active challenge flags and keeps audit logging redacted', async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'dice-prod-log-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const logPath = path.join(directory, 'app.log');
   const { request } = await fixture(t, {
     production: true,
     challengeOptions: { logPath },
-    activeChallenges: ['weak-password', 'log-flood'],
+    activeChallenges: ['weak-password', 'log-flood', 'xss'],
   });
   const status = await (await request('/api/audit-log/status')).json();
   assert.equal(status.isActive, false);
-  assert.equal((await request('/api/products')).status, 200);
-  assert.equal((await (await request('/api/audit-log/status')).json()).sizeBytes, 0);
+  assert.equal(status.sizeBytes, 0);
+  assert.deepEqual(await (await request('/api/challenges/weak-password/config')).json(), { isActive: false });
+  assert.deepEqual(await (await request('/api/challenges/xss/config')).json(), { previewPath: '/xss-preview/', isActive: false });
+  const response = await request('/api/products?search=dice', {
+    headers: { Authorization: 'Bearer secret-token', Cookie: 'session=leaky' },
+  });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('x-challenge-complete'), null);
+  assert.ok((await response.json()).length > 0);
+  const contents = await readFile(logPath, 'utf8');
+  const entry = JSON.parse(contents.trim());
+  assert.deepEqual(Object.keys(entry).sort(), ['ip', 'method', 'time', 'url']);
+  assert.equal(entry.method, 'GET');
+  assert.equal(entry.url, '/api/products');
+  assert.ok(!contents.includes('search=dice'));
+  assert.ok(!contents.includes('secret-token'));
+  assert.ok(!contents.includes('leaky'));
+  assert.equal((await (await request('/api/audit-log/status')).json()).sizeBytes, Buffer.byteLength(contents));
   assert.equal((await request('/api/auth/login', { method: 'POST', body: { username: 'aria', password } })).status, 401);
 });
 

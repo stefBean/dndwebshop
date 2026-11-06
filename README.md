@@ -69,10 +69,11 @@ Refresh the shop after importing or editing the database. Catalogue categories a
 
 In development only, two fictitious customer accounts are available:
 
-| Username | Password |
-| --- | --- |
-| `aria` | `RollForAdventure!24` |
-| `finn` | `RollForAdventure!24` |
+| Username | Password              |
+|----------|-----------------------|
+| `aria`   | `RollForAdventure!24` |
+| `finn`   | `RollForAdventure!24` |
+| `admin`  | `Passwort1!`          |
 
 Customers can also create their own accounts. Passwords require 12–128 characters with uppercase, lowercase, and a number. Passwords are salted and hashed with scrypt; raw passwords are never stored. Sessions use random opaque tokens in HttpOnly, SameSite=Lax cookies. Only token hashes are stored server-side. Sessions expire after 24 hours and are invalidated on logout. Login and registration share a limit of eight attempts per IP in two minutes.
 
@@ -91,16 +92,17 @@ requests. Both existing challenges default to inactive. Flags persist across
 restarts and database initialization. Toggle them from the server directory:
 
 ```sh
+# From the server folder run commands to active and deactivate challenges (cd server)
 npm run challenge:set -- log-flood true
 npm run challenge:set -- weak-password true
+npm run challenge:set -- xss true
 # Return to safe behavior:
 npm run challenge:set -- log-flood false
 npm run challenge:set -- weak-password false
+npm run challenge:set -- xss false
 ```
 
-No restart is required. `NODE_ENV=production` always uses safe behavior,
-regardless of stored flags. Flags cannot be changed through public HTTP requests.
-Use the same `DB_PATH` as the running server.
+No restart is required.
 
 Inactive logging records metadata only (no headers, no response body, query
 string truncated) and rotates at 64 KiB. Active logging retains full request
@@ -108,15 +110,21 @@ headers and the complete catalogue response in the isolated audit log, with a
 32 MiB application cap. Disabling the flag does not erase previously written
 sensitive data; use the log reset command to clear it.
 
-The weak-password flag enables MD5 verification only for the seeded Aria demo
-account's separate `challenge_password_hash`. Its regular scrypt credential is
+The weak-password flag enables MD5 verification  `challenge_password_hash` for all users.
+With an existing user and a falsely entered password, the error message 401 then shows the weakly hashed password which 
+can then be used to translate to clear text and log in. 
+The passwords regular scrypt credentials are
 preserved, so turning the flag off immediately restores safe verification.
-Finn and registered customers always use scrypt. Passwords are submitted to the
-server for verification; serve the shop over HTTPS outside local development.
-The DOM-XSS exercise runs in a sandboxed iframe at /xss-preview/ on the shop
-origin, using the same container and port. See [the XSS guide](challenge-xss/README.md)
-for single-IP deployment, payloads and isolation checks.
+The save modus always uses scrypt for all users. Passwords are submitted to the
+server for verification; serve the shop over HTTPS outside local development. In the save mode further the password hash
+is no longer shown in the response. 
 
+The DOM-XSS exercise runs in an own iframe that can be toggled with the `xss` challenge flag. 
+The iframe is sandboxed and the challenge is to break out of the iframe and execute a script in the parent context.
+In the product search field an input such as: 
+```bash
+<svg onload="alert('XSS Challenge works')" /> 
+```
 ## Audit log: CWE-779 logging of excessive data
 
 The OWASP A09:2025 issue is implemented in `server/audit-log.js` and is
@@ -192,7 +200,3 @@ Backend integration tests run against isolated temporary databases and cover pro
 | POST | `/api/audit-log/reset` | Truncate the audit log |
 
 JSON mutation requests must use `Content-Type: application/json`, except the bodyless logout request. Errors return `{ error }` with the appropriate HTTP status. Product and order prices use integer euro cents.
-
-## Branding assets
-
-The monochrome Dungeons & Dragons dragon-ampersand symbol is provided by [Simple Icons](https://github.com/simple-icons/simple-icons/blob/develop/icons/dungeonsanddragons.svg) under CC0 and is stored locally in `client/public/images/dnd-symbol.svg`. The shop wordmark is a local typographic composition inspired by the Dungeons & Dragons identity, with “Shop” added. Product illustrations remain in color.

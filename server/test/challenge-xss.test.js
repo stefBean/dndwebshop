@@ -36,11 +36,29 @@ test('preview is static: URL input is decoded only by the isolated browser scrip
   assert.ok(html.includes(previewScript));
   const result = {};
   runInNewContext(previewScript, {
+    window: {alert() {}},
     URLSearchParams, location: { search: url.search },
     document: { getElementById: (id) => { assert.equal(id, 'result'); return result; } },
   });
   assert.equal(result.innerHTML, 'No products found for: ' + payload);
   // This checks the source-to-sink flow, not browser execution; see manual scenario.
+});
+
+test('preview alerts notify the parent and preserve the native dialog', () => {
+  const calls = [];
+  const window = { alert(message) { assert.equal(this, window); calls.push(['alert', message]); } };
+  runInNewContext(previewScript, {
+    window,
+    parent: { postMessage(message, targetOrigin) { calls.push(['message', message.type, targetOrigin]); } },
+    URLSearchParams, location: { search: '' },
+    document: { getElementById: () => ({}) },
+  });
+  assert.deepEqual(calls, []);
+  window.alert('XSS challenge');
+  assert.deepEqual(calls, [
+    ['message', 'dice-lore-xss-alert', '*'],
+    ['alert', 'XSS challenge'],
+  ]);
 });
 
 test('preview headers restrict scripts, resources, framing and direct-open privileges', async (t) => {
@@ -50,7 +68,7 @@ test('preview headers restrict scripts, resources, framing and direct-open privi
   const hash = createHash('sha256').update(previewScript).digest('base64');
   assert.ok(csp.includes("script-src 'sha256-" + hash + "'"));
   for (const directive of [
-    "sandbox allow-scripts", "script-src-attr 'unsafe-inline'",
+    "sandbox allow-scripts allow-modals", "script-src-attr 'unsafe-inline'",
     "default-src 'none'", "connect-src 'none'", "img-src 'none'",
     "frame-src 'none'", "worker-src 'none'", "form-action 'none'", "base-uri 'none'",
     "frame-ancestors 'self'",
@@ -70,7 +88,10 @@ test('shop exposes only the fixed preview path and preserves its script policy',
   t.after(() => db.close());
   const base = await serve(t, createApp(db));
   const response = await fetch(base + '/api/challenges/xss/config?previewOrigin=https://evil.invalid');
-  assert.deepEqual(await response.json(), { previewPath: '/xss-preview/' });
+  assert.deepEqual(await response.json(), { previewPath: '/xss-preview/', isActive: false });
+  db.prepare('UPDATE challenges SET active = 1 WHERE id = ?').run('xss');
+  const active = await fetch(base + '/api/challenges/xss/config?previewOrigin=https://evil.invalid');
+  assert.deepEqual(await active.json(), { previewPath: '/xss-preview/', isActive: true });
   const csp = response.headers.get('content-security-policy');
   assert.ok(csp.includes("script-src 'self';"));
   assert.ok(csp.includes("frame-src 'self';"));
@@ -91,7 +112,7 @@ test('shop exposes only the fixed preview path and preserves its script policy',
 test('integration confines the sink and remounts the sandbox when the search changes', async () => {
   const frame = await readFile(new URL('../../client/src/components/catalog/SearchChallengeFrame.jsx', import.meta.url), 'utf8');
   const page = await readFile(new URL('../../client/src/pages/ShopPage.jsx', import.meta.url), 'utf8');
-  assert.ok(frame.includes('sandbox="allow-scripts"'));
+  assert.ok(frame.includes('sandbox="allow-scripts allow-modals"'));
   assert.ok(frame.includes('key={url.href}'));
   assert.ok(frame.includes('url.searchParams.set("search", search)'));
   assert.ok(!frame.includes('dangerouslySetInnerHTML'));

@@ -41,7 +41,7 @@ test('status returns an empty unsolved state before the first log entry', async 
     { method: 'GET', originalUrl: '/api/products', path: '/api/products', ip: '127.0.0.1', headers: {} },
     [{ name: 'Dragon Sword' }],
   );
-  assert.deepEqual(result, { written: true, reason: null });
+  assert.deepEqual(result, { written: true, reason: null, completed: false });
   assert.match(await readFile(logPath, 'utf8'), /Dragon Sword/);
   assert.ok((await log.status()).sizeBytes > 0);
 });
