@@ -137,8 +137,6 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
   app.get('/api/products', async (req, res) => {
     const search = typeof req.query.search === 'string' ? req.query.search.slice(0, 200) : '';
     const products = getProducts(db, search);
-    // CWE-779: every catalogue request is written to the audit log, and in the
-    // vulnerable mode the whole response is stored as well.
     const result = await auditLog.write(req, products);
     if (result.reason === 'full') {
       return res.status(507).json({ error: 'The audit log is full. Reset it before continuing.' });
