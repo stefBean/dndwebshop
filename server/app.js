@@ -1,14 +1,14 @@
 import express from 'express';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
-import { hashPasswordSHA256, hashPasswordSync, verifyPassword, tokenHash, hashPasswordMD5, hashPassword } from './security.js';
+import { hashPasswordSHA256, hashPasswordSync, verifyPassword, tokenHash, hashPasswordMD5} from './security.js';
 import { getProduct, getProducts } from './products.js';
 import { createChallengeState } from './challenges.js';
 import { createChallengeRouter } from './challenge-log.js';
 
 const adminTest = "admin@diceandlore.test"
 const adminTestPwHash = "0cef1fb10f60529028a71f58e54ed07b"
-const isActive = true; 
+
 
 const cookieName = 'dice_lore_session';
 const sessionLifetime = 24 * 60 * 60 * 1000;
@@ -131,6 +131,10 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     res.json({ isActive: challenges.isActive('xss'), previewOrigin: previewUrl.origin });
   });
 
+  app.get('/api/challenges/weak-password/config', (req, res) => {
+    res.json({ isActive: challenges.isActive('weak-password'), previewOrigin: previewUrl.origin });
+  });
+
   app.get('/api/products', (req, res) => {
     const search = typeof req.query.search === 'string' ? req.query.search.slice(0, 200) : '';
     res.json(getProducts(db, search));
@@ -143,7 +147,8 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
   });
 
   app.get('/api/auth/me', (req, res) => res.json({ user: req.user || null }));
-  app.post('/api/auth/login', authLimit, async (req, res) => {
+  
+  /*app.post('/api/auth/login', authLimit, async (req, res) => {
     const { username, password } = req.body || {};
     if (!validUsername(username) || typeof password !== 'string' || password.length > 128) {
       return res.status(400).json({ error: 'Enter a valid username and password.' });
@@ -158,47 +163,44 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     }
     startSession(req, res, user);
     res.json({ user: publicUser(user) });
-  });
+  });*/
+
+  
+  
   app.post('/api/auth/login', authLimit, async (req, res) => {
-    const { email, password } = req.body || {};
-  
-    if (
-      typeof email !== 'string' ||
-      email.length > 254 ||
-      typeof password !== 'string' ||
-      password.length > 128
-    ) {
-      return res.status(400).json({ error: 'Enter a valid email address and password.' });
+    const { username, password } = req.body || {};
+    if (!validUsername(username) || typeof password !== 'string' || password.length > 128) {
+      return res.status(400).json({ error: 'Enter a valid username and password.' });
     }
-  
-    const user = db
-      .prepare('SELECT * FROM users WHERE email = ?')
-      .get(email.trim().toLowerCase());
-  
-    
-      if(isActive){
-        const  passwordHash = await hashPasswordMD5(password);
-      }else{
-        const  passwordHash = await hashPasswordSHA256(password);
-      }
-  
+    const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username.trim().toLowerCase());
+    const passwordHash = "";
+
+    if(challenges.isActive('weak-password')){
+      const  passwordHash = await hashPasswordMD5(password);
+    }else{
+      const  passwordHash = await hashPasswordSHA256(password);
+    }
+
     const matches =
       user &&
       !(production && user.is_demo) &&
       user.password_hash === passwordHash;
-  
+
     if (!matches) {
-      if(isActive){
+      if(challenges.isActive('weak-password')){
       return res.status(401).json({ error: 'That email and password do not match.', adminTest, adminTestPwHash});
     }else{
       return res.status(401).json({ error: 'That email and password do not match.'});
     }
     }
-  
+
+
     startSession(req, res, user);
     res.json({ user: publicUser(user) });
   });
 
+  
+  
   app.post('/api/auth/register', authLimit, async (req, res) => {
     const { name, username, password } = req.body || {};
     if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 80) return res.status(400).json({ error: 'Enter a name between 2 and 80 characters.' });

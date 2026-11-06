@@ -5,16 +5,21 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { importProducts } from './products.js';
 import { hashPasswordSync } from './security.js';
+import { createChallengeState } from './challenges.js';
+import { createChallengeRouter } from './challenge-log.js';
 
 const serverDirectory = path.dirname(fileURLToPath(import.meta.url));
 const starterProductsFile = path.join(serverDirectory, 'data/products.json');
 const starterMigration = 'initial-products-v1';
-const isActive = true; 
+
+
 export const DEFAULT_DB_PATH = path.join(serverDirectory, 'shop.db');
 
 export function resolveDatabasePath(filename = process.env.DB_PATH || DEFAULT_DB_PATH) {
   return filename === ':memory:' ? filename : path.resolve(serverDirectory, filename);
 }
+
+
 
 function migrateUsernames(db) {
   const columns = new Set(db.pragma('table_info(users)').map((column) => column.name));
@@ -45,11 +50,11 @@ function migrateUsernames(db) {
 export function initializeDatabase(db, {
   seedProducts = true,
   demoAccounts =
-      process.env.NODE_ENV !== 'production' ||
-      (
-          process.env.INTERNAL_HTTP_TEST === 'true' &&
-          process.env.ENABLE_DEMO_ACCOUNTS === 'true'
-      )
+  process.env.NODE_ENV !== 'production' ||
+  (
+    process.env.INTERNAL_HTTP_TEST === 'true' &&
+    process.env.ENABLE_DEMO_ACCOUNTS === 'true'
+  )
 } = {}) {
   db.pragma('foreign_keys = ON');
   db.pragma('journal_mode = WAL');
@@ -101,6 +106,17 @@ export function initializeDatabase(db, {
     );
   `);
   const columns = new Set(db.pragma('table_info(products)').map((column) => column.name));
+  demoAccounts =
+    process.env.NODE_ENV !== 'production' ||
+    (
+      process.env.INTERNAL_HTTP_TEST === 'true' &&
+      process.env.ENABLE_DEMO_ACCOUNTS === 'true'
+    )
+    
+  const challenges = createChallengeState(db, {
+    production: process.env.NODE_ENV === 'production',
+  });
+
   for (const [name, definition] of [
     ['category', "TEXT NOT NULL DEFAULT 'Gear'"],
     ['image', "TEXT NOT NULL DEFAULT '/images/adventurer-kit.svg'"],
@@ -130,28 +146,25 @@ export function initializeDatabase(db, {
 
   if (demoAccounts) {
     const insert = db.prepare(
-      'INSERT OR IGNORE INTO users (name, email, password_hash, is_demo) VALUES (?, ?, ?, 1)'
+      'INSERT OR IGNORE INTO users (name, username, password_hash, is_demo) VALUES (?, ?, ?, 1)'
     );
-  
-    
-    if(isActive){
-    const users = [
-      ['Aria', 'aria@diceandlore.test', hashPasswordSync('RollForAdventure!24')],
-      ['Finn', 'finn@diceandlore.test', hashPasswordSync('RollForAdventure!24')],
-      ['Admin', 'admin@diceandlore.com', '0cef1fb10f60529028a71f58e54ed07b'],
-    ];
-    }else{
-      const users = [
-        ['Aria', 'aria@diceandlore.test', hashPasswordSync('RollForAdventure!24')],
-        ['Finn', 'finn@diceandlore.test', hashPasswordSync('RollForAdventure!24')],
-        ['Admin', 'admin@diceandlore.com', '0cef1fb10f60529028a71f58e54ed07b'],
-      ];
-    }
 
-  
-    for (const [name, email, passwordHash] of users) {
-      if (!db.prepare('SELECT id FROM users WHERE email = ?').get(email)) {
-        insert.run(name, email, passwordHash);
+    const users = [];
+    if (demoAccounts) {
+      const users = [
+        ['Aria', 'aria', hashPasswordSync('RollForAdventure!24')],
+        ['Finn', 'finn', hashPasswordSync('RollForAdventure!24')],
+        ['Admin', 'admin@diceandlore.com', '0cef1fb10f60529028a71f58e54ed07b'],
+        ...(challenges.isActive('weak-password')
+        ? [['Admin', 'admin', '0cef1fb10f60529028a71f58e54ed07b']]
+        : []),
+      ];
+    } 
+
+
+    for (const [name, username, passwordHash] of users) {
+      if (!db.prepare('SELECT id FROM users WHERE username = ?').get(username)) {
+        insert.run(name, username, passwordHash);
       }
     }
   }
