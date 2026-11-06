@@ -18,19 +18,18 @@ const wave =
 
 export default function AnimatedPotion({ className = "" }) {
   const id = useId().replaceAll(":", "");
-  const [paused, setPaused] = useState(false);
   const reducedMotion = useSyncExternalStore(
     subscribeToMotion,
     prefersReducedMotion,
     () => false,
   );
-  const playing = !paused && !reducedMotion;
+  const playing = !reducedMotion;
   const ref = (name) => `url(#${id}-${name})`;
 
   return (
     <figure
       className={`animated-potion ${className}`}
-      data-motion={playing ? "playing" : "paused"}
+      data-motion={playing ? "playing" : ""}
       data-testid="animated-potion"
     >
       <svg
@@ -58,11 +57,7 @@ export default function AnimatedPotion({ className = "" }) {
             y2="300"
             gradientUnits="userSpaceOnUse"
           >
-            <stop stopColor="#fff" stopOpacity=".16" />
-            <stop offset=".13" stopColor="#d9d5e5" stopOpacity=".04" />
-            <stop offset=".55" stopColor="#fff" stopOpacity=".015" />
-            <stop offset=".88" stopColor="#fff" stopOpacity=".1" />
-            <stop offset="1" stopColor="#fff" stopOpacity=".22" />
+
           </linearGradient>
           <linearGradient
             id={`${id}-edge`}
@@ -72,10 +67,7 @@ export default function AnimatedPotion({ className = "" }) {
             y2="500"
             gradientUnits="userSpaceOnUse"
           >
-            <stop stopColor="#fff" stopOpacity=".8" />
-            <stop offset=".32" stopColor="#c4bed2" stopOpacity=".24" />
-            <stop offset=".7" stopColor="#fff" stopOpacity=".45" />
-            <stop offset="1" stopColor="#c4b5fd" stopOpacity=".7" />
+
           </linearGradient>
           <linearGradient
             id={`${id}-liquid`}
@@ -85,10 +77,7 @@ export default function AnimatedPotion({ className = "" }) {
             y2="515"
             gradientUnits="userSpaceOnUse"
           >
-            <stop stopColor="#c4a5ff" />
-            <stop offset=".18" stopColor="#a16df7" />
-            <stop offset=".55" stopColor="#7638d5" />
-            <stop offset="1" stopColor="#3a1379" />
+
           </linearGradient>
           <linearGradient
             id={`${id}-cap`}
@@ -98,14 +87,10 @@ export default function AnimatedPotion({ className = "" }) {
             y2="114"
             gradientUnits="userSpaceOnUse"
           >
-            <stop stopColor="#535158" />
-            <stop offset=".27" stopColor="#26252b" />
-            <stop offset=".7" stopColor="#17161b" />
-            <stop offset="1" stopColor="#45434b" />
+
           </linearGradient>
           <radialGradient id={`${id}-pool`}>
-            <stop stopColor="#a78bfa" stopOpacity=".26" />
-            <stop offset="1" stopColor="#a78bfa" stopOpacity="0" />
+
           </radialGradient>
           <clipPath id={`${id}-bottle`}>
             <path d={bottle} />
@@ -293,39 +278,7 @@ export default function AnimatedPotion({ className = "" }) {
         <circle cx="428" cy="253" r="1.5" fill="#fff" opacity=".45" />
       </svg>
 
-      <button
-        type="button"
-        className="potion__motion-control"
-        onClick={() => setPaused((value) => !value)}
-        aria-label={
-          reducedMotion
-            ? "Potion animation disabled by reduced-motion preference"
-            : playing
-              ? "Pause potion animation"
-              : "Play potion animation"
-        }
-        aria-pressed={!playing}
-        disabled={reducedMotion}
-      >
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 12 12"
-          fill="currentColor"
-          aria-hidden="true"
-        >
-          {playing ? (
-            <path d="M3 2h2v8H3zM7 2h2v8H7z" />
-          ) : (
-            <path d="m3 1 7 5-7 5z" />
-          )}
-        </svg>
-        {reducedMotion
-          ? "Reduced motion"
-          : playing
-            ? "Pause motion"
-            : "Play motion"}
-      </button>
+
     </figure>
   );
 }
