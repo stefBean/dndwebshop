@@ -81,11 +81,13 @@ test('integration confines the sink and remounts the sandbox when the search cha
   assert.ok(frame.includes('url.searchParams.set("search", search)'));
   assert.ok(!frame.includes('dangerouslySetInnerHTML'));
   assert.ok(!page.includes('dangerouslySetInnerHTML'));
-  assert.ok(page.includes('search.trim() && ('));
+  assert.ok(page.includes(') : search.trim() ? ('));
+  assert.ok(!page.includes('{search.trim() && ('));
+  assert.ok(page.indexOf(') : filtered.length ? (') < page.indexOf(') : search.trim() ? ('));
   assert.ok(page.includes('onReset={() => setSearch("")}'));
 });
 
-test('XSS activation follows live challenge state and production policy', async (t) => {
+test('XSS activation follows live challenge state in development and production', async (t) => {
   const db = openDatabase(':memory:', { demoAccounts: false });
   t.after(() => db.close());
   const base = await serve(t, createApp(db, { production: false }));
@@ -94,7 +96,7 @@ test('XSS activation follows live challenge state and production policy', async 
   db.prepare("UPDATE challenges SET active = 1 WHERE id = 'xss'").run();
   assert.equal(await active(), true);
   const production = await serve(t, createApp(db, { production: true }));
-  assert.equal((await (await fetch(production + '/api/challenges/xss/config')).json()).isActive, false);
+  assert.equal((await (await fetch(production + '/api/challenges/xss/config')).json()).isActive, true);
   db.prepare("UPDATE challenges SET active = 0 WHERE id = 'xss'").run();
   assert.equal(await active(), false);
 });

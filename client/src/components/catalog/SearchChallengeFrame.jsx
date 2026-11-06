@@ -4,25 +4,30 @@ import { Button, Notice } from "../ui.jsx";
 
 export default function SearchChallengeFrame({ search, onReset }) {
   const frame = useRef(null);
-  const [origin, setOrigin] = useState("");
-  const [error, setError] = useState("");
-  const [isActive, setIsActive] = useState(false);
+  const [config, setConfig] = useState(null);
+  const current = config?.search === search ? config : null;
+  const isActive = current?.isActive === true;
+  const origin = current?.origin || "";
+  const error = current?.error || "";
   useEffect(() => {
     const controller = new AbortController();
     api("/api/challenges/xss/config", { signal: controller.signal })
       .then((data) => {
-        setIsActive(data.isActive === true);
-        if (!data.isActive) return;
+        if (controller.signal.aborted) return;
+        if (data.isActive !== true) {
+          setConfig({ search, isActive: false });
+          return;
+        }
         const url = new URL(data.previewOrigin);
         if (!["http:", "https:"].includes(url.protocol) ||
             url.origin !== data.previewOrigin ||
             url.hostname === window.location.hostname) {
           throw new Error("The search preview needs a separate cookie host.");
         }
-        setOrigin(url.origin);
+        setConfig({ search, isActive: true, origin: url.origin });
       })
       .catch((err) => {
-        if (err.name !== "AbortError") setError(err.message);
+        if (!controller.signal.aborted) setConfig({ search, error: err.message });
       });
     return () => controller.abort();
   }, [search]);
@@ -43,7 +48,9 @@ export default function SearchChallengeFrame({ search, onReset }) {
   if (url) url.searchParams.set("search", search);
   return (
     <div className="rounded-xl border border-dashed border-line bg-surface p-4 text-center">
-      {!isActive && !error ? (
+      {!current ? (
+        <p role="status" className="py-12 text-sm text-muted">Loading search preview…</p>
+      ) : !isActive && !error ? (
         <p className="py-12 text-sm text-muted">No products found for: {search}</p>
       ) : error || tooLong ? (
         <Notice variant="error">

@@ -8,8 +8,8 @@ npm run challenge:set --prefix server -- xss false
 ```
 
 Der Status wird bei jeder Suche neu gelesen. Nur bei aktivem Status wird der
-isolierte Frame geladen, auch bei Produkt-Treffern oder leerem Katalog. In
-Produktion bleibt die Challenge wie die anderen Challenges deaktiviert.
+isolierte Frame bei einer Suche ohne Produkt-Treffer geladen. Erfolgreiche
+Suchen zeigen nur die Produkte. Der gespeicherte Status gilt auch in Produktion.
 
 Test-Payload: `<svg onload="alert('XSS')"></svg>`. `alert()` sendet eine
 Nachricht an den Shop, der den Frame-Absender und Nachrichtentyp prüft und den
