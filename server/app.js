@@ -5,7 +5,7 @@ import { randomBytes } from 'node:crypto';
 import { hashPasswordSHA256, hashPasswordSync, verifyPassword, tokenHash, hashPasswordMD5} from './security.js';
 import { getProduct, getProducts } from './products.js';
 import { createChallengeState } from './challenges.js';
-import { createChallengeRouter } from './challenge-log.js';
+import { createAuditLog, createAuditRouter } from './audit-log.js';
 
 const adminTest = "admin@diceandlore.test"
 const adminTestPwHash = "0cef1fb10f60529028a71f58e54ed07b"
@@ -73,14 +73,15 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
           return res.status(403).json({ error: 'Invalid request origin.' });
         }
       }
-      const bodyOptional = req.path === '/auth/logout' || req.path === '/challenges/log-flood/reset';
+      const bodyOptional = req.path === '/auth/logout' || req.path === '/audit-log/reset';
       if (req.method === 'POST' && !bodyOptional && !req.is('application/json')) {
         return res.status(415).json({ error: 'Send this request as application/json.' });
       }
     }
     next();
   });
-  app.use(createChallengeRouter({ ...challengeOptions, isActive: () => challenges.isActive('log-flood') }));
+  const auditLog = createAuditLog({ ...challengeOptions, challenges });
+  app.use(createAuditRouter({ log: auditLog }));
   app.use(express.json({ limit: '16kb' }));
   app.use('/api', (req, res, next) => {
     const token = cookieToken(req);
@@ -133,10 +134,14 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     res.json({ isActive: challenges.isActive('weak-password') });
   });
 
-  app.get('/api/products', (req, res) => {
+  app.get('/api/products', async (req, res) => {
     const search = typeof req.query.search === 'string' ? req.query.search.slice(0, 200) : '';
-    res.json(getProducts(db, search));
-    
+    const products = getProducts(db, search);
+    const result = await auditLog.write(req, products);
+    if (result.reason === 'full') {
+      return res.status(507).json({ error: 'The audit log is full. Reset it before continuing.' });
+    }
+    res.json(products);
   });
   
   app.get('/api/products/:id', (req, res) => {

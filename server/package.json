@@ -7,7 +7,7 @@
     "start": "node index.js",
     "seed": "node seed.js",
     "products:import": "node import-products.js",
-    "reset:challenge": "node reset-challenge.js",
+    "audit:reset": "node reset-audit-log.js",
     "challenge:set": "node challenge-state.js",
     "test": "node --test test/*.test.js"
   },

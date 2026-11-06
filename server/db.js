@@ -4,9 +4,9 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { importProducts } from './products.js';
-import { hashPasswordSync } from './security.js';
+import { hashPasswordSync, hashPasswordMD5, hashPasswordMD5Sync } from './security.js';
 import { createChallengeState } from './challenges.js';
-import { createChallengeRouter } from './challenge-log.js';
+
 
 const serverDirectory = path.dirname(fileURLToPath(import.meta.url));
 const starterProductsFile = path.join(serverDirectory, 'data/products.json');
@@ -145,26 +145,24 @@ export function initializeDatabase(db, {
   }).immediate();
 
   if (demoAccounts) {
+    const weakPasswordActive = challenges.isActive('weak-password');
+    //change hashfunction depending on if challenge is active or not 
+    const hashDemoPassword = weakPasswordActive     
+      ? hashPasswordMD5Sync
+      : hashPasswordSync;
+  
+      const users = [
+        ['Aria', 'aria', hashDemoPassword('RollForAdventure!24')],
+        ['Finn', 'finn', hashDemoPassword('RollForAdventure!24')],
+        ['Admin', 'admin', hashDemoPassword('Password1!')],
+      ];
+  
     const insert = db.prepare(
       'INSERT OR IGNORE INTO users (name, username, password_hash, is_demo) VALUES (?, ?, ?, 1)'
     );
-
-    const users = [];
-    if (demoAccounts) {
-      const users = [
-        ['Aria', 'aria', hashPasswordSync('RollForAdventure!24')],
-        ['Finn', 'finn', hashPasswordSync('RollForAdventure!24')],
-        ...(challenges.isActive('weak-password')
-        ? [['Admin', 'admin', '0cef1fb10f60529028a71f58e54ed07b']]
-        : []),
-      ];
-    } 
-
-
+  
     for (const [name, username, passwordHash] of users) {
-      if (!db.prepare('SELECT id FROM users WHERE username = ?').get(username)) {
-        insert.run(name, username, passwordHash);
-      }
+      insert.run(name, username, passwordHash);
     }
   }
 

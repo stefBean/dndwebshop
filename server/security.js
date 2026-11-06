@@ -19,9 +19,11 @@ export async function hashPasswordSHA256(password) {
 
   export async function hashPasswordMD5(password) {                         //MD5
   return createHash('md5').update(password, 'utf8').digest('hex');
-}  
+}
 
-
+export  function hashPasswordMD5Sync(password) {                         //MD5
+  return createHash('md5').update(password, 'utf8').digest('hex');
+}
 
 
 

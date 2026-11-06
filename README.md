@@ -102,11 +102,11 @@ No restart is required. `NODE_ENV=production` always uses safe behavior,
 regardless of stored flags. Flags cannot be changed through public HTTP requests.
 Use the same `DB_PATH` as the running server.
 
-Inactive logging accepts at most 10 KB, writes metadata without headers or body,
-limits requests to 30 per minute per IP, and rotates at 64 KiB. Active logging
-accepts 1 MB bodies and retains full headers/body in the isolated challenge log,
-with a 32 MiB application cap. Disabling a challenge does not erase previously
-written sensitive challenge data; use the log reset command to clear it.
+Inactive logging records metadata only (no headers, no response body, query
+string truncated) and rotates at 64 KiB. Active logging retains full request
+headers and the complete catalogue response in the isolated audit log, with a
+32 MiB application cap. Disabling the flag does not erase previously written
+sensitive data; use the log reset command to clear it.
 
 The weak-password flag enables MD5 verification only for the seeded Aria demo
 account's separate `challenge_password_hash`. Its regular scrypt credential is
@@ -117,48 +117,51 @@ The DOM-XSS exercise runs in a sandboxed iframe at /xss-preview/ on the shop
 origin, using the same container and port. See [the XSS guide](challenge-xss/README.md)
 for single-IP deployment, payloads and isolation checks.
 
-## Security challenge: CWE-779 logging of excessive data
+## Audit log: CWE-779 logging of excessive data
 
-The OWASP A09:2025 challenge is implemented in `server/challenge-log.js` and is
-isolated from the normal shop API. When its flag is active, the challenge endpoint intentionally writes every header
-and the complete request body to a dedicated log file, unredacted and without
-rate limiting, up to the 32 MiB storage cap.
+The OWASP A09:2025 issue is implemented in `server/audit-log.js` and is
+triggered by ordinary shopping: every `GET /api/products` request is logged.
+When the flag is active, the shop writes the full request headers (including the
+session cookie) and the complete catalogue response to a dedicated log file,
+unredacted and without rate limiting, up to the 32 MiB storage cap. A customer
+browsing the catalogue therefore floods the log with data the shop never needs
+to keep.
 
 Endpoints:
 
 | Method | Path | Behavior |
 | --- | --- | --- |
-| POST | `/api/log.flood` | Accepts a JSON body and writes a challenge log entry |
-| GET | `/api/challenges/log-flood/status` | Current log size and the 10 MB threshold |
-| POST | `/api/challenges/log-flood/reset` | Truncates the challenge log only |
+| GET | `/api/products` | Catalogue request; the audit log entry is written here |
+| GET | `/api/audit-log/status` | Current log size and the 10 MB threshold |
+| POST | `/api/audit-log/reset` | Truncates the audit log only |
 
-The log defaults to `/tmp/dice-lore-challenge/app.log` and can be changed with
-`CHALLENGE_LOG_PATH`. `docker-compose.yml` mounts that directory as a 32 MiB
+The log defaults to `/tmp/dice-lore-audit/app.log` and can be changed with
+`AUDIT_LOG_PATH`. `docker-compose.yml` mounts that directory as a 32 MiB
 tmpfs, so a flood cannot fill the container or the persistent database volume.
-Set `CHALLENGE_ADMIN_TOKEN` to require an `X-Challenge-Token` header on reset.
 
-Reproduce the challenge (first run `npm run challenge:set -- log-flood true` from `server/`):
+Reproduce the issue (first run `npm run challenge:set -- log-flood true` from `server/`):
 
 ```sh
 # Baseline size
-curl -s localhost:3001/api/challenges/log-flood/status
+curl -s localhost:3001/api/audit-log/status
 
-# 250 requests with ~50 KB bodies
-for i in $(seq 1 250); do
-  curl -s -o /dev/null -X POST localhost:3001/api/log.flood \
-    -H 'Content-Type: application/json' \
-    --data "{\"text\":\"$(head -c 50000 /dev/zero | tr '\0' 'A')\"}"
+# Browse the catalogue repeatedly, like a scraper would
+for i in $(seq 1 3000); do
+  curl -s -o /dev/null localhost:3001/api/products
 done
 
 # Size should now exceed the 10 MB threshold
-curl -s localhost:3001/api/challenges/log-flood/status
+curl -s localhost:3001/api/audit-log/status
 ```
 
-Reset only the challenge log (database, sessions and orders are untouched):
+Each entry is roughly 3.5 KB, so about 3000 catalogue requests reach the 10 MB
+goal. Inspect the leaked data with `tail -1 /tmp/dice-lore-audit/app.log`.
+
+Reset only the audit log (database, sessions and orders are untouched):
 
 ```sh
-docker compose exec shop npm run reset:challenge
-# or, from server/: npm run reset:challenge
+docker compose exec shop npm run audit:reset
+# or, from server/: npm run audit:reset
 ```
 
 ## Validation
@@ -185,9 +188,8 @@ Backend integration tests run against isolated temporary databases and cover pro
 | POST | `/api/auth/logout` | Invalidate session, return 204 |
 | GET | `/api/orders` | Signed-in customer's order history |
 | POST | `/api/orders` | `{ items: [{ product_id, quantity }] }`; create simulated order |
-| POST | `/api/log.flood` | CWE-779 challenge logging endpoint |
-| GET | `/api/challenges/log-flood/status` | Challenge log size and threshold |
-| POST | `/api/challenges/log-flood/reset` | Truncate the challenge log |
+| GET | `/api/audit-log/status` | Audit log size and threshold |
+| POST | `/api/audit-log/reset` | Truncate the audit log |
 
 JSON mutation requests must use `Content-Type: application/json`, except the bodyless logout request. Errors return `{ error }` with the appropriate HTTP status. Product and order prices use integer euro cents.
 
