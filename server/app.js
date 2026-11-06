@@ -2,14 +2,10 @@ import express from 'express';
 import { serveXssPreview } from './xss-preview.js';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
-import { hashPasswordSHA256, hashPasswordSync, verifyPassword, tokenHash, hashPasswordMD5} from './security.js';
+import { hashPasswordSHA256, hashPasswordSync, verifyPassword, tokenHash } from './security.js';
 import { getProduct, getProducts } from './products.js';
 import { createChallengeState } from './challenges.js';
 import { createAuditLog, createAuditRouter } from './audit-log.js';
-
-const adminTest = "admin@diceandlore.test"
-const adminTestPwHash = "0cef1fb10f60529028a71f58e54ed07b"
-
 
 const cookieName = 'dice_lore_session';
 const sessionLifetime = 24 * 60 * 60 * 1000;
@@ -81,7 +77,11 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     next();
   });
   const auditLog = createAuditLog({ ...challengeOptions, challenges });
-  app.use(createAuditRouter({ log: auditLog }));
+  const resetRegisteredUsers = db.transaction(() => {
+    db.prepare('DELETE FROM orders WHERE user_id IN (SELECT id FROM users WHERE is_demo = 0)').run();
+    return db.prepare('DELETE FROM users WHERE is_demo = 0').run().changes;
+  });
+  app.use(createAuditRouter({ log: auditLog, onReset: resetRegisteredUsers, production }));
   app.use(express.json({ limit: '16kb' }));
   app.use('/api', (req, res, next) => {
     const token = cookieToken(req);
@@ -127,7 +127,7 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
 
   // Public address only: never a client-supplied URL or challenge secret.
   app.get('/api/challenges/xss/config', (req, res) => {
-    res.json({ previewPath: '/xss-preview/' });
+    res.json({ previewPath: '/xss-preview/', isActive: challenges.isActive('xss') });
   });
 
   app.get('/api/challenges/weak-password/config', (req, res) => {
@@ -138,6 +138,7 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     const search = typeof req.query.search === 'string' ? req.query.search.slice(0, 200) : '';
     const products = getProducts(db, search);
     const result = await auditLog.write(req, products);
+    if (result.completed) res.set('X-Challenge-Complete', 'log-flood');
     if (result.reason === 'full') {
       return res.status(507).json({ error: 'The audit log is full. Reset it before continuing.' });
     }
@@ -177,30 +178,27 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
       return res.status(400).json({ error: 'Enter a valid username and password.' });
     }
     const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username.trim().toLowerCase());
-    const passwordHash = "";
-
-    if(challenges.isActive('weak-password')){
-      const  passwordHash = await hashPasswordMD5(password);
-    }else{
-      const  passwordHash = await hashPasswordSHA256(password);
-    }
-
-    const matches =
-      user &&
-      !(production && user.is_demo) &&
-      user.password_hash === passwordHash;
+    const weakChallenge = challenges.isActive('weak-password') &&
+      user?.is_demo === 1 && Boolean(user.challenge_password_hash);
+    const verified = weakChallenge
+      ? challenges.verifyDemoPassword(password, user.challenge_password_hash)
+      : await verifyPassword(password, user?.password_hash || dummyHash);
+    const matches = user && verified && (allowDemoAccounts || !user.is_demo);
 
     if (!matches) {
-      if(challenges.isActive('weak-password')){
+      const adminTest = user?.username === 'admin';
+      const adminTestPwHash = user?.challenge_password_hash;
       return res.status(401).json({ error: 'That username and password do not match.', adminTest, adminTestPwHash});
-    }else{
-      return res.status(401).json({ error: 'That username and password do not match.'});
-    }
     }
 
 
     startSession(req, res, user);
-    res.json({ user: publicUser(user) });
+    res.json({
+      user: publicUser(user),
+      ...(challenges.isActive('weak-password') && user.username === 'admin'
+        ? { challengeComplete: 'weak-password' }
+        : {}),
+    });
   });
 
   
@@ -213,13 +211,7 @@ export function createApp(db, { production = process.env.NODE_ENV === 'productio
     }
     const normalized = username.trim().toLowerCase();
     
-    if(isActive){
-      const  passwordHash = await hashPasswordMD5(password);
-    }else{
-      const  passwordHash = await hashPasswordSHA256(password);
-    }
-    
-    
+    const passwordHash = await hashPasswordSHA256(password);
     const result = db.prepare('INSERT OR IGNORE INTO users (name, username, password_hash) VALUES (?, ?, ?)').run(name.trim(), normalized, passwordHash);
     if (!result.changes) return res.status(409).json({ error: 'An account with that username already exists. Please sign in.' });
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);

@@ -8,6 +8,12 @@ export async function api(path, options = {}) {
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
+  const completedChallenge = response.headers.get("X-Challenge-Complete");
+  if (completedChallenge) {
+    window.dispatchEvent(
+      new CustomEvent("challenge:complete", { detail: completedChallenge }),
+    );
+  }
   if (response.status === 204) return null;
   const data = await response.json().catch(() => null);
   if (!response.ok) {
