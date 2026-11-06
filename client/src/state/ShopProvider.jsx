@@ -11,12 +11,27 @@ export default function ShopProvider({ children }) {
   const [authLoading, setAuthLoading] = useState(true);
   const [cart, setCart] = useState(readCart);
   const [toast, setToast] = useState("");
+  const [challengeBanner, setChallengeBanner] = useState("");
   const toastTimer = useRef();
   const notify = useCallback((message) => {
     clearTimeout(toastTimer.current);
     setToast(message);
     toastTimer.current = setTimeout(() => setToast(""), 3500);
   }, []);
+  const completeChallenge = useCallback((id) => {
+    const messages = {
+      "log-flood": "Challenge complete: the audit log reached its size target.",
+      "weak-password": "Challenge complete: signed in as admin during the weak-password challenge.",
+      xss: "Challenge complete: the XSS alert was triggered.",
+    };
+    if (messages[id]) setChallengeBanner(messages[id]);
+  }, []);
+  const clearChallengeBanner = useCallback(() => setChallengeBanner(""), []);
+  useEffect(() => {
+    const onChallengeComplete = (event) => completeChallenge(event.detail);
+    window.addEventListener("challenge:complete", onChallengeComplete);
+    return () => window.removeEventListener("challenge:complete", onChallengeComplete);
+  }, [completeChallenge]);
   const reloadProducts = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -121,6 +136,8 @@ export default function ShopProvider({ children }) {
     cart,
     cartItems,
     toast,
+    challengeBanner,
+    clearChallengeBanner,
     cartCount: cart.reduce((sum, item) => sum + item.quantity, 0),
     totalCents: cartItems.reduce(
       (sum, item) => sum + (item.product?.price_cents || 0) * item.quantity,
@@ -130,6 +147,7 @@ export default function ShopProvider({ children }) {
     setQuantity,
     setUser,
     notify,
+    completeChallenge,
     reloadProducts,
     removeFromCart: (id) =>
       setCart((items) => items.filter((item) => item.product_id !== id)),

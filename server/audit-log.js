@@ -55,17 +55,24 @@ export function createAuditLog({
       };
       const line = `${JSON.stringify(entry)}\n`;
       const limit = active ? ACTIVE_LIMIT : SAFE_LIMIT;
-      if ((await fileSize(logPath)) + Buffer.byteLength(line) > limit) {
-        if (active) return { written: false, reason: 'full' };
+      let completed = false;
+      const sizeBefore = await fileSize(logPath);
+      if (active && !solved && sizeBefore >= THRESHOLD_BYTES) {
+        solved = true;
+        completed = true;
+      }
+      if (sizeBefore + Buffer.byteLength(line) > limit) {
+        if (active) return { written: false, reason: 'full', completed };
         await writeFile(logPath, '');
       }
       await appendFile(logPath, line);
       const sizeBytes = await fileSize(logPath);
-      if (!solved && sizeBytes >= THRESHOLD_BYTES) {
+      if (active && !solved && sizeBytes >= THRESHOLD_BYTES) {
         solved = true;
+        completed = true;
         console.log(`\n*** AUDIT LOG GOAL REACHED: ${sizeBytes} bytes (>= 10 MB) ***\n`);
       }
-      return { written: true, reason: null };
+      return { written: true, reason: null, completed };
     });
   }
 
@@ -83,12 +90,27 @@ export function createAuditLog({
 
 export function createAuditRouter(options = {}) {
   const log = options.log || createAuditLog(options);
+  const onReset = options.onReset || (() => 0);
+  const production = options.production ?? process.env.NODE_ENV === 'production';
+  const resetToken = options.resetToken ?? process.env.CHALLENGE_RESET_TOKEN ?? '';
   const router = express.Router();
 
   router.get('/api/audit-log/status', async (req, res) => res.json(await log.status()));
 
-  router.post('/api/audit-log/reset', async (req, res) => {
-    res.json({ reset: true, ...(await log.reset()) });
+  router.post('/api/audit-log/reset', async (req, res, next) => {
+    if (production && (!resetToken || req.get('x-challenge-reset-token') !== resetToken)) {
+      return res.status(403).json({ error: 'A valid challenge reset token is required.' });
+    }
+    if (resetToken && req.get('x-challenge-reset-token') !== resetToken) {
+      return res.status(403).json({ error: 'A valid challenge reset token is required.' });
+    }
+    try {
+      const deletedUsers = await onReset();
+      const status = await log.reset();
+      return res.json({ reset: true, deletedUsers, ...status });
+    } catch (error) {
+      return next(error);
+    }
   });
 
   return router;

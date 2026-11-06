@@ -2,7 +2,12 @@ import { createHash } from 'node:crypto';
 
 // The only intentional HTML injection sink in the XSS challenge.
 // Keep this script separate from the shop bundle and all privileged services.
-export const previewScript = `const search = new URLSearchParams(location.search).get('search') || '';
+export const previewScript = `const nativeAlert = window.alert.bind(window);
+window.alert = (message) => {
+  parent.postMessage({ type: 'dice-lore-xss-alert' }, '*');
+  nativeAlert(message);
+};
+const search = new URLSearchParams(location.search).get('search') || '';
 document.getElementById('result').innerHTML = 'No products found for: ' + search;`;
 
 const scriptHash = createHash('sha256').update(previewScript).digest('base64');
@@ -25,7 +30,7 @@ h1{font-size:24px;font-weight:500}p{color:#a3a3a3;line-height:1.7}
 
 // A fixed document only: never interpolate request headers, cookies or query data.
 export const previewCsp = [
-  "default-src 'none'", "sandbox allow-scripts",
+  "default-src 'none'", "sandbox allow-scripts allow-modals",
   `script-src 'sha256-${scriptHash}'`, "script-src-attr 'unsafe-inline'",
   "style-src 'unsafe-inline'", "connect-src 'none'", "img-src 'none'",
   "font-src 'none'", "media-src 'none'", "frame-src 'none'", "worker-src 'none'",

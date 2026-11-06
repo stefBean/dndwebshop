@@ -2,9 +2,10 @@ import { useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { useShop } from "../../state/shop-context.js";
 import Header from "./Header.jsx";
+import { Notice } from "../ui.jsx";
 
 export default function PageLayout() {
-  const { toast } = useShop();
+  const { toast, challengeBanner, clearChallengeBanner } = useShop();
   const { pathname } = useLocation();
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
@@ -18,6 +19,16 @@ export default function PageLayout() {
         Skip to content
       </a>
       <Header />
+      {challengeBanner && (
+        <div className="fixed inset-x-4 top-4 z-50 mx-auto max-w-2xl">
+          <Notice variant="success" className="flex items-center justify-between gap-4 bg-surface shadow-xl">
+            <span>{challengeBanner}</span>
+            <button type="button" className="shrink-0 underline" onClick={clearChallengeBanner}>
+              Dismiss
+            </button>
+          </Notice>
+        </div>
+      )}
       <div id="main-content" tabIndex={-1} className="flex-1 outline-none">
         <Outlet />
       </div>

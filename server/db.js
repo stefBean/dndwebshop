@@ -1,10 +1,9 @@
 import Database from 'better-sqlite3';
-import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { importProducts } from './products.js';
-import { hashPasswordSync, hashPasswordMD5, hashPasswordMD5Sync } from './security.js';
+import { hashPasswordSync, hashPasswordMD5Sync } from './security.js';
 import { createChallengeState } from './challenges.js';
 
 
@@ -106,13 +105,6 @@ export function initializeDatabase(db, {
     );
   `);
   const columns = new Set(db.pragma('table_info(products)').map((column) => column.name));
-  demoAccounts =
-    process.env.NODE_ENV !== 'production' ||
-    (
-      process.env.INTERNAL_HTTP_TEST === 'true' &&
-      process.env.ENABLE_DEMO_ACCOUNTS === 'true'
-    )
-    
   const challenges = createChallengeState(db, {
     production: process.env.NODE_ENV === 'production',
   });
@@ -145,24 +137,23 @@ export function initializeDatabase(db, {
   }).immediate();
 
   if (demoAccounts) {
-    const weakPasswordActive = challenges.isActive('weak-password');
-    //change hashfunction depending on if challenge is active or not 
-    const hashDemoPassword = weakPasswordActive     
-      ? hashPasswordMD5Sync
-      : hashPasswordSync;
-  
-      const users = [
-        ['Aria', 'aria', hashDemoPassword('RollForAdventure!24')],
-        ['Finn', 'finn', hashDemoPassword('RollForAdventure!24')],
-        ['Admin', 'admin', hashDemoPassword('Password1!')],
-      ];
-  
+    const users = [
+      ['Aria', 'aria', 'RollForAdventure!24'],
+      ['Finn', 'finn', 'RollForAdventure!24'],
+      ['Admin', 'admin', 'Password1!'],
+    ];
     const insert = db.prepare(
-      'INSERT OR IGNORE INTO users (name, username, password_hash, is_demo) VALUES (?, ?, ?, 1)'
+      'INSERT OR IGNORE INTO users (name, username, password_hash, challenge_password_hash, is_demo) VALUES (?, ?, ?, ?, 1)'
     );
-  
-    for (const [name, username, passwordHash] of users) {
-      insert.run(name, username, passwordHash);
+    const refresh = db.prepare(
+      'UPDATE users SET password_hash = ?, challenge_password_hash = ? WHERE username = ? AND is_demo = 1'
+    );
+
+    for (const [name, username, password] of users) {
+      const strongHash = hashPasswordSync(password);
+      const challengeHash = hashPasswordMD5Sync(password);
+      insert.run(name, username, strongHash, challengeHash);
+      refresh.run(strongHash, challengeHash, username);
     }
   }
 

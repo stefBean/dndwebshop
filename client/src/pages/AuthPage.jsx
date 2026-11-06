@@ -14,7 +14,7 @@ import {
 } from "../components/ui.jsx";
 export default function AuthPage({ mode = "login" }) {
   const register = mode === "register";
-  const { user, setUser, notify } = useShop();
+  const { user, setUser, notify, completeChallenge } = useShop();
   const navigate = useNavigate();
   const location = useLocation();
   const [name, setName] = useState("");
@@ -44,6 +44,7 @@ export default function AuthPage({ mode = "login" }) {
         },
       });
       setUser(result.user);
+      if (result.challengeComplete) completeChallenge(result.challengeComplete);
       notify(
         `Welcome${register ? " to the guild" : " back"}, ${result.user.name}!`,
       );
